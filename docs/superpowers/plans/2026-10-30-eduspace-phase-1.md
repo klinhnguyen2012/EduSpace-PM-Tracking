@@ -25,7 +25,7 @@
 - `package.json`, `package-lock.json`: frontend scripts and minimal runtime/development dependencies.
 - `index.html`, `vite.config.ts`, `tsconfig*.json`, `postcss.config.js`, `tailwind.config.js`: Vite, TypeScript, and Tailwind setup.
 - `.gitignore`: exclude local env files, dependencies, build output, and local tooling artifacts.
-- `.env.example`: safe placeholders for `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- `.env.example`: safe placeholders for `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, with legacy anon-key compatibility documented.
 - `src/main.tsx`: React entry point.
 - `src/App.tsx`: session restore, auth event subscription, auth form actions, and three-item navigation shell.
 - `src/index.css`: Tailwind directives and compact global styles.
@@ -40,35 +40,35 @@
 
 **Files:** Create the Vite, React, TypeScript, Tailwind, and gitignore files listed in the file map. Add only the required dependencies.
 
-- [ ] Initialize a Vite React TypeScript app in the repository root.
-- [ ] Configure Tailwind CSS and Lucide React.
-- [ ] Add `.env.local` and `.env` patterns to `.gitignore`; verify no `.venv/`, `.env*` secrets, or generated output is staged.
-- [ ] Confirm the package scripts include `dev` and `build`.
+- [x] Initialize a Vite React TypeScript app in the repository root.
+- [x] Configure Tailwind CSS and Lucide React.
+- [x] Add `.env.local` and `.env` patterns to `.gitignore`; verify no `.venv/`, `.env*` secrets, or generated output is staged.
+- [x] Confirm the package scripts include `dev` and `build`.
 
 ### Task 2: Build the Vietnamese app shell
 
 **Files:** `src/main.tsx`, `src/App.tsx`, `src/index.css`, `src/components/Sidebar.tsx`, `src/components/SetupNotice.tsx`.
 
-- [ ] Render a desktop-first, tablet-responsive navy/teal shell with exactly three sidebar destinations.
-- [ ] Keep placeholder pages honest: “Sẽ triển khai ở phase sau”.
-- [ ] Show the missing-Supabase setup state when credentials are absent.
+- [x] Render a desktop-first, tablet-responsive navy/teal shell with exactly three sidebar destinations.
+- [x] Keep placeholder pages honest: “Sẽ triển khai ở phase sau”.
+- [x] Show the missing-Supabase setup state when credentials are absent.
 
 ### Task 3: Connect Supabase Auth
 
 **Files:** `.env.example`, `src/lib/supabase.ts`, `src/App.tsx`, `src/components/AuthPanel.tsx`, `src/types/index.ts`.
 
-- [ ] Read only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from Vite environment variables.
-- [ ] Create the Supabase client only when both values exist and are non-empty.
-- [ ] Restore the persisted session with `getSession` and subscribe to auth changes; unsubscribe on unmount.
-- [ ] Support email/password sign-in, sign-up, and sign-out with clear Vietnamese loading and error messages.
-- [ ] Keep app data access and RLS outside this phase.
+- [x] Read `VITE_SUPABASE_URL` and either the current publishable key or legacy anon key from Vite environment variables.
+- [x] Create the Supabase client only when both values exist and are non-empty.
+- [x] Restore the persisted session with `getSession` and subscribe to auth changes; unsubscribe on unmount.
+- [x] Support email/password sign-in, sign-up, and sign-out with clear Vietnamese loading and error messages.
+- [x] Keep app data access and RLS outside this phase.
 
 ### Task 4: Document first-time Supabase setup and verify the phase
 
 **Files:** `docs/supabase-setup.md`, `.env.example`, all frontend files from earlier tasks.
 
-- [ ] Write a beginner checklist: create a Supabase project, find Project URL and anon/publishable key, create a test user, copy `.env.example` to `.env.local`, add both values, restart Vite, and sign in.
-- [ ] Explain email confirmation may be enabled, and explicitly warn never to expose or use the `service_role` key in frontend configuration.
-- [ ] Run the production build and inspect its exit status.
-- [ ] Manually inspect the configured and unconfigured UI states in the browser when local runtime tooling is available; record any part that requires the user's Supabase credentials.
-- [ ] Review the final Git diff for scope and secrets.
+- [x] Write a beginner checklist: create a Supabase project, find Project URL and anon/publishable key, create a test user, copy `.env.example` to `.env.local`, add both values, restart Vite, and sign in.
+- [x] Explain email confirmation may be enabled, and explicitly warn never to expose or use the `service_role` key in frontend configuration.
+- [x] Run the production build and inspect its exit status.
+- [ ] Browser visual inspection could not run: no browser/DevTools provider is configured in this session. Local dev server returned HTTP 200. Real sign-in still requires the user's Supabase credentials.
+- [x] Review the final Git diff for scope and secrets.
