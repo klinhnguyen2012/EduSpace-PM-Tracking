@@ -15,9 +15,9 @@
 ## 2. Lấy hai giá trị để app kết nối
 
 1. Mở project vừa tạo.
-2. Vào **Project Settings → API** (giao diện mới có thể đặt phần này dưới mục **API Keys**).
+2. Chọn **Connect** để xem thông tin kết nối, hoặc vào **Project Settings → API Keys** trong Supabase Dashboard.
 3. Sao chép **Project URL**.
-4. Sao chép **Publishable key** (thường bắt đầu bằng `sb_publishable_`). Với project cũ chỉ có khóa `anon`, có thể dùng `anon` thay thế.
+4. Trong mục **Publishable and secret API keys**, sao chép **Publishable key** (bắt đầu bằng `sb_publishable_`). Với project cũ chỉ có khóa `anon`, có thể dùng `anon` thay thế.
 
 Các giá trị này là cấu hình client. **Không dùng `service_role` hoặc secret key trong frontend, không dán chúng vào chat, và không commit file `.env.local`.**
 
