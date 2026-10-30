@@ -1,15 +1,23 @@
-import { useEffect, useState } from 'react'
+'use client'
+
+import { useEffect, useState, type ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import type { Session } from '@supabase/supabase-js'
 import { ChevronRight, LogOut } from 'lucide-react'
-import { Sidebar } from './components/Sidebar'
-import { BugTracker } from './pages/BugTracker'
-import { Dashboard } from './pages/Dashboard'
-import { TaskTimeline } from './pages/TaskTimeline'
-import { isSupabaseConfigured, supabase } from './lib/supabase'
-import { pageTitles, type DashboardPage } from './types'
+import { Dashboard } from './Dashboard'
+import { Sidebar } from './Sidebar'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { pageTitles, type DashboardPage } from '../types'
 
-export default function App() {
-  const [activePage, setActivePage] = useState<DashboardPage>('dashboard')
+function pageFromPath(pathname: string): DashboardPage {
+  if (pathname.startsWith('/task-timeline')) return 'timeline'
+  if (pathname.startsWith('/bug-tracker')) return 'bugs'
+  return 'dashboard'
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
+  const activePage = pageFromPath(pathname)
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
   const [authError, setAuthError] = useState('')
@@ -61,7 +69,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <Sidebar activePage={activePage} />
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><ChevronRight size={14} /><strong>{pageTitle}</strong></div>
@@ -82,14 +90,12 @@ export default function App() {
           ) : session ? (
             <>
               {authError && <div className="auth-error-banner" role="alert">{authError}</div>}
-              {activePage === 'dashboard' && <Dashboard authenticated client={supabase} />}
-              {activePage === 'timeline' && <TaskTimeline />}
-              {activePage === 'bugs' && <BugTracker />}
+              {children}
             </>
           ) : (
             <>
               {authError && <div className="auth-error-banner" role="alert">{authError}</div>}
-              <Dashboard authenticated={false} client={supabase} />
+              <Dashboard authenticated={false} />
             </>
           )}
           <footer className="page-footer"><span>EduSpace PM Dashboard</span><span>Thiết kế cho đội ngũ dự án</span></footer>

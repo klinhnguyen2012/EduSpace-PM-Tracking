@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, type FormEvent } from 'react'
 import { ArrowRight, LoaderCircle, LockKeyhole, Mail } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'

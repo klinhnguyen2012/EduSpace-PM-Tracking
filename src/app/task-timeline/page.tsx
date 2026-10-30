@@ -1,6 +1,6 @@
 import { FileText } from 'lucide-react'
 
-export function TaskTimeline() {
+export default function TaskTimeline() {
   return (
     <>
       <div className="page-heading">

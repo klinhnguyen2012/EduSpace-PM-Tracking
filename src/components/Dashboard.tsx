@@ -1,12 +1,10 @@
-import { ArrowUpRight, Check, CircleHelp, CircleUserRound, FileText, KeyRound, ShieldCheck } from 'lucide-react'
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { AuthPanel } from '../components/AuthPanel'
-import { isSupabaseConfigured } from '../lib/supabase'
+'use client'
 
-type DashboardProps = {
-  authenticated: boolean
-  client: SupabaseClient | null
-}
+import { ArrowUpRight, Check, CircleHelp, CircleUserRound, FileText, KeyRound, ShieldCheck } from 'lucide-react'
+import { AuthPanel } from './AuthPanel'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
+
+type DashboardProps = { authenticated: boolean }
 
 function SetupNotice() {
   return (
@@ -27,7 +25,7 @@ function SetupNotice() {
         Mở Supabase Dashboard <ArrowUpRight size={15} />
       </a>
       <div className="setup-help">
-        <CircleHelp size={15} /> Chưa có tài khoản? Xem <a href="./docs/supabase-setup.md">checklist Supabase</a>.
+        <CircleHelp size={15} /> Chưa có tài khoản? Xem <a href="/supabase-setup.md">checklist Supabase</a>.
       </div>
     </section>
   )
@@ -46,14 +44,14 @@ function WelcomePanel({ authenticated }: { authenticated: boolean }) {
       <ul className="phase-list">
         <li><Check size={15} /> {authenticated ? 'Đăng nhập workspace qua Supabase Auth' : 'Khung giao diện và điều hướng đã sẵn sàng'}</li>
         <li><Check size={15} /> {authenticated ? 'Các trang chính đã được định hình' : 'Supabase Auth sẽ xác thực người dùng thật'}</li>
-        <li><FileText size={15} /> Hướng dẫn kết nối Supabase có sẵn trong thư mục docs</li>
+        <li><FileText size={15} /> Checklist kết nối Supabase có sẵn trong dự án</li>
       </ul>
     </section>
   )
 }
 
-export function Dashboard({ authenticated, client }: DashboardProps) {
-  if (!authenticated && isSupabaseConfigured && client) {
+export function Dashboard({ authenticated }: DashboardProps) {
+  if (!authenticated && isSupabaseConfigured && supabase) {
     return (
       <>
         <div className="page-heading">
@@ -63,7 +61,7 @@ export function Dashboard({ authenticated, client }: DashboardProps) {
             <p>Đăng nhập để cùng đội ngũ quản lý công việc và tiến độ.</p>
           </div>
         </div>
-        <AuthPanel client={client} />
+        <AuthPanel client={supabase} />
       </>
     )
   }

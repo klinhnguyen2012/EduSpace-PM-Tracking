@@ -1,6 +1,6 @@
 import { ShieldCheck } from 'lucide-react'
 
-export function BugTracker() {
+export default function BugTracker() {
   return (
     <>
       <div className="page-heading">
