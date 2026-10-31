@@ -345,16 +345,28 @@ a { color: inherit; }
 .bug-table th { padding: 11px 9px; border-bottom: 1px solid #dce7f5; color: #536579; background: #f5f8ff; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .bug-table th:nth-child(1), .bug-table td:nth-child(1) { width: 4%; }
 .bug-table th:nth-child(2), .bug-table td:nth-child(2) { width: 20%; }
-.bug-table th:nth-child(3), .bug-table td:nth-child(3) { width: 12%; }
-.bug-table th:nth-child(4), .bug-table td:nth-child(4) { width: 12%; }
+.bug-table th:nth-child(3), .bug-table td:nth-child(3) { width: 10%; }
+.bug-table th:nth-child(4), .bug-table td:nth-child(4) { width: 10%; }
 .bug-table th:nth-child(5), .bug-table td:nth-child(5) { width: 10%; }
-.bug-table th:nth-child(6), .bug-table td:nth-child(6) { width: 15%; }
-.bug-table th:nth-child(7), .bug-table td:nth-child(7) { width: 17%; }
-.bug-table th:nth-child(8), .bug-table td:nth-child(8) { width: 10%; }
+.bug-table th:nth-child(6), .bug-table td:nth-child(6) { width: 13%; }
+.bug-table th:nth-child(7), .bug-table td:nth-child(7) { width: 13%; }
+.bug-table th:nth-child(8), .bug-table td:nth-child(8) { width: 8%; }
+.bug-table th:nth-child(9), .bug-table td:nth-child(9) { width: 12%; text-align: center; }
 .bug-table td { padding: 12px 8px; border-bottom: 1px solid #e9eef5; color: #4b5563; font-size: 12px; vertical-align: middle; overflow-wrap: anywhere; }
 .bug-table tbody tr:hover td { background: #f8fbff; }
 .bug-sequence { color: #87919a; text-align: center; }
-.bug-title-open { display: block; max-width: 100%; padding: 0; border: 0; color: #1f2a37; background: transparent; font-size: 13px; font-weight: 700; line-height: 1.45; text-align: left; }
+.bug-title-open, .bug-title-button { display: block; width: 100%; padding: 0; border: 0; color: #1f2a37; background: transparent; font-size: 13px; font-weight: 700; line-height: 1.45; text-align: left; cursor: pointer; }
+.bug-title-button:hover { color: #2f80ed; text-decoration: underline; }
+.bug-actions-cell { white-space: nowrap; text-align: center; }
+.bug-action-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border: 1px solid transparent; border-radius: 6px; font-size: 11px; font-weight: 650; cursor: pointer; transition: all .15s ease; }
+.bug-action-btn.edit { color: #1f3a93; background: #f0f5ff; border-color: #d4e3fb; margin-right: 6px; }
+.bug-action-btn.edit:hover { color: #fff; background: #2f80ed; border-color: #2f80ed; }
+.bug-action-btn.delete { color: #c53030; background: #fff5f5; border-color: #fed7d7; }
+.bug-action-btn.delete:hover { color: #fff; background: #e53e3e; border-color: #e53e3e; }
+.bug-modal-footer { display: flex; align-items: center; justify-content: space-between; }
+.modal-footer-actions { display: flex; align-items: center; gap: 8px; }
+.danger-button { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; min-height: 38px; border: 1px solid #fed7d7; border-radius: 8px; color: #c53030; background: #fff5f5; font-size: 12px; font-weight: 650; cursor: pointer; }
+.danger-button:hover:not(:disabled) { color: #fff; background: #e53e3e; border-color: #e53e3e; }
 .bug-update-button { display: inline-flex; margin-top: 6px; padding: 4px 8px; border: 1px solid #d8e5fa; border-radius: 6px; color: #1f3a93; background: #f5f8ff; font-size: 11px; font-weight: 650; cursor: pointer; }
 .bug-update-button:hover { color: #fff; border-color: #2f80ed; background: #2f80ed; }
 .bug-pic-list { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -550,7 +562,15 @@ a { color: inherit; }
 :root[data-theme="dark"] .task-table tbody tr:not(.task-edit-row):hover td,
 :root[data-theme="dark"] .bug-table tbody tr:hover td { background: #203552; }
 :root[data-theme="dark"] .task-table .task-title-cell small { color: #aebed5; }
-:root[data-theme="dark"] .bug-title-open { color: #f3f7ff; }
+:root[data-theme="dark"] .bug-title-open,
+:root[data-theme="dark"] .bug-title-button { color: #f3f7ff; }
+:root[data-theme="dark"] .bug-title-button:hover { color: #60a5fa; }
+:root[data-theme="dark"] .bug-action-btn.edit { color: #bdd8ff; background: #223552; border-color: #3b506e; }
+:root[data-theme="dark"] .bug-action-btn.edit:hover { color: #fff; background: #2f80ed; border-color: #2f80ed; }
+:root[data-theme="dark"] .bug-action-btn.delete,
+:root[data-theme="dark"] .danger-button { color: #feb2b2; background: #4a2424; border-color: #742a2a; }
+:root[data-theme="dark"] .bug-action-btn.delete:hover,
+:root[data-theme="dark"] .danger-button:hover:not(:disabled) { color: #fff; background: #e53e3e; border-color: #e53e3e; }
 :root[data-theme="dark"] .bug-update-button { color: #bdd8ff; border-color: #405675; background: #223552; }
 :root[data-theme="dark"] .bug-pic-tag,
 :root[data-theme="dark"] .bug-pic-option { color: #bdd8ff; border-color: #405675; background: #223552; }

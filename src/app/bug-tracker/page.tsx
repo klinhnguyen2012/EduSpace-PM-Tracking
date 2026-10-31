@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Bug as BugIcon, Plus, RefreshCw, X } from 'lucide-react'
+import { Bug as BugIcon, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 type BugStatus = 'open' | 'in_progress' | 'fixed' | 'retesting' | 'closed'
@@ -224,6 +224,32 @@ export default function BugTracker() {
     else setBugs((current) => current.map((item) => item.id === bug.id ? { ...item, status } : item))
   }
 
+  async function deleteBug(bug: Bug) {
+    if (!supabase) return
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa bug "${bug.title}"?`)) return
+    setError('')
+    const { error: deleteError } = await supabase.from('bugs').delete().eq('id', bug.id)
+    if (deleteError) {
+      setError(`Không xóa được bug: ${deleteError.message}`)
+      return
+    }
+
+    setBugs((current) => current.filter((item) => item.id !== bug.id))
+    if (isModalOpen && editingBugId === bug.id) {
+      setIsModalOpen(false)
+    }
+
+    const allImages = [...bug.attachments, ...bug.test_attachments]
+    if (allImages.length) {
+      await supabase.storage.from('task-images').remove(allImages)
+      setImageUrls((current) => {
+        const next = { ...current }
+        allImages.forEach((path) => delete next[path])
+        return next
+      })
+    }
+  }
+
   function renderImages(paths: string[], label: string, showEmpty = true) {
     return paths.length ? <div className="bug-image-thumbs" aria-label={`${paths.length} ${label}`}>
       {paths.map((path) => imageUrls[path] && <button className="task-image-thumb" type="button" onClick={() => setExpandedImage(imageUrls[path])} key={path} aria-label={`Xem ${label}`}>
@@ -250,13 +276,24 @@ export default function BugTracker() {
           <div className="task-empty">Chưa có bug. Bấm “Báo lỗi” để ghi nhận bug đầu tiên.</div>
         ) : <div className="bug-table-wrap">
           <table className="bug-table">
-            <thead><tr><th>STT</th><th>Bug</th><th>PIC</th><th>Ảnh minh họa</th><th>Trạng thái</th><th>Nhận xét</th><th>Kết quả kiểm tra</th><th>Ảnh test</th></tr></thead>
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Bug</th>
+                <th>PIC</th>
+                <th>Ảnh minh họa</th>
+                <th>Trạng thái</th>
+                <th>Nhận xét</th>
+                <th>Kết quả kiểm tra</th>
+                <th>Ảnh test</th>
+                <th className="bug-actions-header">Thao tác</th>
+              </tr>
+            </thead>
             <tbody>{bugs.map((bug, index) => <tr key={bug.id}>
               <td className="bug-sequence">{index + 1}</td>
               <td className="bug-title-cell">
-                <span className="bug-title-open">{bug.title}</span>
+                <button className="bug-title-button" type="button" onClick={() => openEditModal(bug)} title="Bấm để xem và sửa">{bug.title}</button>
                 {bug.description && <button className="bug-cell-preview" type="button" onClick={() => setPreviewContent(bug.description ?? '')}>{bug.description}</button>}
-                <button className="bug-update-button" type="button" onClick={() => openEditModal(bug)}>Cập nhật</button>
               </td>
               <td><div className="bug-pic-list">{bug.pic_ids.length ? bug.pic_ids.map((id) => {
                 const member = teamMembers.find((person) => person.id === id)
@@ -269,6 +306,14 @@ export default function BugTracker() {
               <td>{bug.notes ? <button className="bug-cell-preview" type="button" onClick={() => setPreviewContent(bug.notes ?? '')}>{bug.notes}</button> : <span className="bug-cell-empty">—</span>}</td>
               <td>{bug.test_result ? <button className="bug-cell-preview" type="button" onClick={() => setPreviewContent(bug.test_result ?? '')}>{bug.test_result}</button> : <span className="bug-cell-empty">—</span>}</td>
               <td>{renderImages(bug.test_attachments, 'ảnh test')}</td>
+              <td className="bug-actions-cell">
+                <button className="bug-action-btn edit" type="button" onClick={() => openEditModal(bug)} title="Cập nhật bug">
+                  <Pencil size={13} /> <span>Sửa</span>
+                </button>
+                <button className="bug-action-btn delete" type="button" onClick={() => void deleteBug(bug)} title="Xóa bug">
+                  <Trash2 size={13} /> <span>Xóa</span>
+                </button>
+              </td>
             </tr>)}</tbody>
           </table>
         </div>}
@@ -343,11 +388,26 @@ export default function BugTracker() {
                 </div>
               </>}
             </div>
-            <footer className="task-modal-footer">
-              <button className="secondary-button" type="button" disabled={saving} onClick={() => setIsModalOpen(false)}>Hủy</button>
-              <button className="primary-button task-submit" type="submit" disabled={saving || !draft.title.trim()}>
-                {saving ? 'Đang lưu…' : editingBugId ? 'Lưu cập nhật' : 'Tạo bug'}
-              </button>
+            <footer className="task-modal-footer bug-modal-footer">
+              {editingBugId ? (
+                <button
+                  className="danger-button bug-modal-delete"
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    const currentBug = bugs.find((b) => b.id === editingBugId)
+                    if (currentBug) void deleteBug(currentBug)
+                  }}
+                >
+                  <Trash2 size={15} /> Xóa bug
+                </button>
+              ) : <div />}
+              <div className="modal-footer-actions">
+                <button className="secondary-button" type="button" disabled={saving} onClick={() => setIsModalOpen(false)}>Hủy</button>
+                <button className="primary-button task-submit" type="submit" disabled={saving || !draft.title.trim()}>
+                  {saving ? 'Đang lưu…' : 'Lưu cập nhật'}
+                </button>
+              </div>
             </footer>
           </form>
         </section>
