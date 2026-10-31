@@ -491,9 +491,11 @@ export default function TaskTimeline() {
                       <td className="task-deadline-cell">{task.deadline ? <span>{deadlineDisplay(task.deadline)}</span> : '—'}</td>
                       <td className="task-title-cell">
                         <div className="task-title-wrap">
-                          <strong><TextPreview label={task.title} text={task.title} onExpand={() => setExpandedText({ label: task.title, text: task.title })} showExpandButton={false} /></strong>
+                          <div className="task-title-header">
+                            <strong><TextPreview label={task.title} text={task.title} onExpand={() => setExpandedText({ label: task.title, text: task.title })} showExpandButton={false} /></strong>
+                            <ExpandButton label={task.title} onExpand={() => setExpandedText({ label: task.title, text: [task.title, task.description].filter(Boolean).join('\n\n') })} />
+                          </div>
                           {task.description && <small><TextPreview label="mô tả" text={task.description} onExpand={() => setExpandedText({ label: `Mô tả · ${task.title}`, text: task.description! })} maxLength={65} showExpandButton={false} /></small>}
-                          <ExpandButton label={task.title} onExpand={() => setExpandedText({ label: task.title, text: [task.title, task.description].filter(Boolean).join('\n\n') })} />
                         </div>
                       </td>
                       <td className="task-output-cell">{task.output ? <TextPreview label="output" text={task.output} onExpand={() => setExpandedText({ label: `Output cụ thể · ${task.title}`, text: task.output! })} /> : '—'}</td>

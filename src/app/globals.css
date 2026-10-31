@@ -321,7 +321,9 @@ a { color: inherit; }
 .cell-expand-trigger { display: inline-flex; align-items: center; gap: 5px; width: fit-content; margin-top: 3px; padding: 3px 8px; border: 1px solid rgba(47, 128, 237, 0.2); border-radius: 6px; color: #1f3a93; background: rgba(47, 128, 237, 0.06); backdrop-filter: blur(8px); box-shadow: 0 2px 6px rgba(47, 128, 237, 0.08); font-size: 10.5px; font-weight: 650; cursor: pointer; transition: all .15s ease; }
 .cell-expand-trigger:hover { color: #fff; background: #2f80ed; border-color: #2f80ed; box-shadow: 0 3px 10px rgba(47, 128, 237, 0.28); }
 .task-title-wrap { display: flex; flex-direction: column; gap: 2px; }
-.cell-expand-trigger--inline { width: 28px; height: 28px; justify-content: center; margin-top: 4px; padding: 0; opacity: 0.72; }
+.task-title-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.task-title-header > strong { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.cell-expand-trigger--inline { width: 28px; height: 28px; flex: 0 0 28px; justify-content: center; margin-top: 0; padding: 0; opacity: 0.72; }
 .cell-expand-trigger--inline:hover { opacity: 1; }
 .cell-expand-trigger:focus-visible, .task-details-button:focus-visible { outline: 2px solid #2f80ed; outline-offset: 2px; opacity: 1; }
 .text-hyperlink { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; color: #1f3a93; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; transition: color .15s ease; vertical-align: middle; }
