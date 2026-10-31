@@ -8,6 +8,7 @@ import { renderWithLinks } from '../../lib/linkify'
 
 type TaskStatus = 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
 type TaskPriority = 'P0' | 'P1' | 'P2'
+type TaskView = 'active' | 'completed'
 
 type Task = {
   id: string
@@ -133,6 +134,7 @@ export default function TaskTimeline() {
   const [savingDetails, setSavingDetails] = useState(false)
   const [expandedText, setExpandedText] = useState<{ label: string; text: string } | null>(null)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
+  const [taskView, setTaskView] = useState<TaskView>('active')
 
   const loadData = useCallback(async () => {
     if (!supabase) {
@@ -367,7 +369,10 @@ export default function TaskTimeline() {
   }
 
   const orderedTasks = [...tasks].sort((a, b) => a.created_at.localeCompare(b.created_at))
-  const taskSequence = new Map(orderedTasks.map((task, index) => [task.id, index + 1]))
+  const activeTasks = orderedTasks.filter((task) => task.status !== 'done')
+  const completedTasks = orderedTasks.filter((task) => task.status === 'done')
+  const visibleTasks = taskView === 'active' ? activeTasks : completedTasks
+  const taskSequence = new Map(visibleTasks.map((task, index) => [task.id, index + 1]))
 
   return (
     <>
@@ -452,15 +457,30 @@ export default function TaskTimeline() {
       </div>}
 
       <section className="task-list-card" aria-label="Danh sách task">
-        <div className="task-list-heading"><h2>Danh sách task</h2><span>{tasks.length} task</span></div>
-        {loading ? <div className="task-empty" role="status">Đang tải task từ Supabase…</div> : tasks.length === 0 ? (
-          <div className="task-empty">Chưa có task. Bấm “Tạo task” để tạo công việc đầu tiên.</div>
+        <div className="task-list-heading">
+          <div className="task-view-switch" role="group" aria-label="Lọc danh sách task">
+            <button type="button" aria-pressed={taskView === 'active'} onClick={() => setTaskView('active')}>
+              Danh sách task <span>{activeTasks.length}</span>
+            </button>
+            <button type="button" aria-pressed={taskView === 'completed'} onClick={() => setTaskView('completed')}>
+              Đã hoàn thành <span>{completedTasks.length}</span>
+            </button>
+          </div>
+        </div>
+        {loading ? <div className="task-empty" role="status">Đang tải task từ Supabase…</div> : visibleTasks.length === 0 ? (
+          <div className="task-empty">
+            {taskView === 'completed'
+              ? 'Chưa có task hoàn thành.'
+              : tasks.length === 0
+                ? 'Chưa có task. Bấm “Tạo task” để tạo công việc đầu tiên.'
+                : 'Không còn task chưa hoàn thành.'}
+          </div>
         ) : (
           <div className="task-table-wrap">
             <table className="task-table">
               <thead><tr><th>STT</th><th>PIC</th><th>Deadline</th><th>Công việc</th><th>Output cụ thể</th><th>Ưu tiên</th><th>Trạng thái</th><th>Cập nhật</th><th>Ảnh</th><th aria-label="Thao tác" /></tr></thead>
               <tbody>
-                  {orderedTasks.map((task) => (
+                  {visibleTasks.map((task) => (
                     <Fragment key={task.id}>
                     <tr>
                       <td className="task-sequence">{taskSequence.get(task.id)}</td>

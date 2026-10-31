@@ -51,6 +51,8 @@ Không cần đăng ký email cá nhân hay xác nhận email. Bạn chỉ cần
 
 Nếu chạy migrations trong thư mục `supabase/migrations/`, quyền truy cập cho tài khoản chung (anon / shared) đã được cấu hình sẵn trong migration `20261031180000_allow_anon_access_for_shared_auth.sql`.
 
+Khi cập nhật ứng dụng để dùng PIC theo tên nhóm trong Bug Tracker, hãy chạy migration `supabase/migrations/20261031190000_bug_pic_names.sql` trong SQL Editor của Supabase trước khi deploy phiên bản ứng dụng mới. Migration thêm cột `pic_names` và chỉ chuyển các PIC cũ có tên hồ sơ khớp nhóm; dữ liệu UUID cũ trong `pic_ids` được giữ nguyên.
+
 ## 5. Chạy và đăng nhập
 
 Trong terminal VS Code, tại thư mục `eduspace`, chạy:

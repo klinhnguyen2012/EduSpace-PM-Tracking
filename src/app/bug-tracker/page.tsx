@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } fr
 import { Bug as BugIcon, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { renderWithLinks } from '../../lib/linkify'
+import { teamMemberNames } from '../../lib/task-colors'
 
 type BugStatus = 'open' | 'in_progress' | 'fixed' | 'retesting' | 'closed'
 type Bug = {
@@ -15,11 +16,10 @@ type Bug = {
   test_result: string | null
   attachments: string[]
   test_attachments: string[]
-  pic_ids: string[]
+  pic_names: string[]
   created_at: string
 }
-type BugDraft = Pick<Bug, 'title' | 'description' | 'status' | 'notes' | 'test_result' | 'attachments' | 'test_attachments' | 'pic_ids'>
-type TeamMember = { id: string; display_name: string; email: string }
+type BugDraft = Pick<Bug, 'title' | 'description' | 'status' | 'notes' | 'test_result' | 'attachments' | 'test_attachments' | 'pic_names'>
 type ImageKind = 'illustration' | 'test'
 
 const statusLabels: Record<BugStatus, string> = {
@@ -27,12 +27,11 @@ const statusLabels: Record<BugStatus, string> = {
 }
 
 const emptyDraft: BugDraft = {
-  title: '', description: '', status: 'open', notes: '', test_result: '', attachments: [], test_attachments: [], pic_ids: [],
+  title: '', description: '', status: 'open', notes: '', test_result: '', attachments: [], test_attachments: [], pic_names: [],
 }
 
 export default function BugTracker() {
   const [bugs, setBugs] = useState<Bug[]>([])
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -55,18 +54,16 @@ export default function BugTracker() {
     const client = supabase
     setLoading(true)
     setError('')
-    const [{ data, error: loadError }, { data: members, error: membersError }] = await Promise.all([
-      client.from('bugs').select('id,title,description,status,notes,test_result,attachments,test_attachments,pic_ids,created_at').order('created_at', { ascending: false }),
-      client.from('profiles').select('id,display_name,email').order('display_name'),
-    ])
+    const { data, error: loadError } = await client
+      .from('bugs')
+      .select('id,title,description,status,notes,test_result,attachments,test_attachments,pic_names,created_at')
+      .order('created_at', { ascending: false })
 
     if (loadError) {
       setError(`Không tải được dữ liệu: ${loadError.message}`)
     } else {
-      const loadedBugs = (data ?? []).map((bug) => ({ ...bug, pic_ids: bug.pic_ids ?? [] })) as Bug[]
+      const loadedBugs = (data ?? []).map((bug) => ({ ...bug, pic_names: bug.pic_names ?? [] })) as Bug[]
       setBugs(loadedBugs)
-      setTeamMembers((members ?? []) as TeamMember[])
-      if (membersError) setError(`Không tải được danh sách PIC: ${membersError.message}`)
       const paths = loadedBugs.flatMap((bug) => [...bug.attachments, ...bug.test_attachments])
       const signedUrls = await Promise.all(paths.map(async (path) => {
         const { data: signed } = await client.storage.from('task-images').createSignedUrl(path, 3600)
@@ -100,7 +97,7 @@ export default function BugTracker() {
       test_result: bug.test_result ?? '',
       attachments: bug.attachments,
       test_attachments: bug.test_attachments,
-      pic_ids: bug.pic_ids ?? [],
+      pic_names: bug.pic_names ?? [],
     })
     setIllustrationFiles([])
     setTestImageFiles([])
@@ -129,10 +126,12 @@ export default function BugTracker() {
     else setTestImageFiles((current) => [...current, ...selected])
   }
 
-  function togglePic(memberId: string) {
+  function togglePic(memberName: string) {
     setDraft((current) => ({
       ...current,
-      pic_ids: current.pic_ids.includes(memberId) ? current.pic_ids.filter((id) => id !== memberId) : [...current.pic_ids, memberId],
+      pic_names: current.pic_names.includes(memberName)
+        ? current.pic_names.filter((name) => name !== memberName)
+        : [...current.pic_names, memberName],
     }))
   }
 
@@ -187,7 +186,7 @@ export default function BugTracker() {
       description: draft.description?.trim() || null,
       attachments: [...draft.attachments, ...uploaded.illustration],
       test_attachments: [...draft.test_attachments, ...uploaded.test],
-      pic_ids: draft.pic_ids,
+      pic_names: draft.pic_names,
     }
     const result = editingBugId
       ? await supabase.from('bugs').update({
@@ -306,10 +305,9 @@ export default function BugTracker() {
                   </div>
                 )}
               </td>
-              <td><div className="bug-pic-list">{bug.pic_ids.length ? bug.pic_ids.map((id) => {
-                const member = teamMembers.find((person) => person.id === id)
-                return <span className="bug-pic-tag" key={id}>{member?.display_name ?? member?.email ?? 'Thành viên'}</span>
-              }) : <span className="bug-cell-empty">—</span>}</div></td>
+              <td><div className="bug-pic-list">{bug.pic_names.length ? bug.pic_names.map((name) => (
+                <span className="bug-pic-tag" key={name}>{name}</span>
+              )) : <span className="bug-cell-empty">—</span>}</div></td>
               <td>{renderImages(bug.attachments, 'ảnh minh họa')}</td>
               <td><select className={`bug-status-select ${bug.status}`} aria-label={`Trạng thái bug ${bug.title}`} value={bug.status} onChange={(event) => void changeStatus(bug, event.target.value as BugStatus)}>
                 {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -381,10 +379,10 @@ export default function BugTracker() {
                 <small>Tối đa 5 ảnh, mỗi ảnh không quá 5 MB.</small>
               </label>
               <div className="task-field"><span>PIC · Có thể chọn nhiều người</span>
-                <div className="bug-pic-picker">{teamMembers.length ? teamMembers.map((member) => <label className="bug-pic-option" key={member.id}>
-                  <input type="checkbox" checked={draft.pic_ids.includes(member.id)} onChange={() => togglePic(member.id)} />
-                  <span>{member.display_name || member.email}</span>
-                </label>) : <span className="bug-cell-empty">Chưa có thành viên</span>}</div>
+                <div className="task-pic-picker">{teamMemberNames.map((memberName) => <label className="task-pic-option" key={memberName}>
+                  <input type="checkbox" checked={draft.pic_names.includes(memberName)} onChange={() => togglePic(memberName)} />
+                  <span>{memberName}</span>
+                </label>)}</div>
               </div>
               {renderEditableImages(draft.attachments, 'ảnh minh họa đã tải lên', 'illustration')}
               {illustrationFiles.length > 0 && <div className="selected-images" aria-label="Ảnh minh họa đang chờ tải lên">
