@@ -31,6 +31,7 @@ type Task = {
 
 type TaskDetailsDraft = {
   taskId: string
+  description: string
   output: string
   links: string
   notes: string
@@ -279,6 +280,7 @@ export default function TaskTimeline() {
   function toggleTaskDetails(task: Task) {
     setEditingDetails((current) => current?.taskId === task.id ? null : {
       taskId: task.id,
+      description: task.description ?? '',
       output: task.output ?? '',
       links: task.links.join('\n'),
       notes: task.notes ?? '',
@@ -299,6 +301,7 @@ export default function TaskTimeline() {
     const { error: updateError } = await supabase
       .from('tasks')
       .update({
+        description: draft.description.trim() || null,
         output: draft.output.trim() || null,
         links: draft.links.split('\n').map((value) => value.trim()).filter(Boolean),
         notes: draft.notes.trim() || null,
@@ -314,6 +317,7 @@ export default function TaskTimeline() {
     else {
       setTasks((current) => current.map((item) => item.id === task.id ? {
         ...item,
+        description: draft.description.trim() || null,
         output: draft.output.trim() || null,
         links: draft.links.split('\n').map((value) => value.trim()).filter(Boolean),
         notes: draft.notes.trim() || null,
@@ -366,7 +370,7 @@ export default function TaskTimeline() {
               </label>
               <label className="task-field">
                 <span>Mô tả</span>
-                <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Mô tả ngắn (không bắt buộc)" />
+                <textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Nhập mô tả chi tiết cho task (hỗ trợ xuống dòng)" />
               </label>
               <div className="task-modal-grid">
                 <label className="task-field">
@@ -459,6 +463,7 @@ export default function TaskTimeline() {
                           <input type="checkbox" checked={editingDetails.picNames.includes(name)} onChange={() => setEditingDetails({ ...editingDetails, picNames: editingDetails.picNames.includes(name) ? editingDetails.picNames.filter((pic) => pic !== name) : [...editingDetails.picNames, name] })} />
                           <span>{name}</span>
                         </label>)}</div></div>
+                        <label className="task-field"><span>Mô tả công việc</span><textarea rows={3} value={editingDetails.description} onChange={(event) => setEditingDetails({ ...editingDetails, description: event.target.value })} placeholder="Cập nhật mô tả chi tiết (hỗ trợ xuống dòng)" /></label>
                         <label className="task-field"><span>Output cụ thể</span><textarea rows={3} value={editingDetails.output} onChange={(event) => setEditingDetails({ ...editingDetails, output: event.target.value })} placeholder="Kết quả cần bàn giao" /></label>
                         <label className="task-field"><span>Link làm (mỗi link một dòng)</span><textarea rows={3} value={editingDetails.links} onChange={(event) => setEditingDetails({ ...editingDetails, links: event.target.value })} placeholder="https://..." /></label>
                         <label className="task-field"><span>Ghi chú / Khó khăn</span><textarea rows={3} value={editingDetails.notes} onChange={(event) => setEditingDetails({ ...editingDetails, notes: event.target.value })} placeholder="Ghi chú tiến độ" /></label>
