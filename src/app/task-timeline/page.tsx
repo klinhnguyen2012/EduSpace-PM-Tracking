@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useState, type ChangeEvent, type Form
 import { ImagePlus, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { memberColor, teamMemberNames } from '../../lib/task-colors'
+import { renderWithLinks } from '../../lib/linkify'
 
 type TaskStatus = 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
 type TaskPriority = 'P0' | 'P1' | 'P2'
@@ -65,10 +66,28 @@ function TextPreview({
   onExpand: () => void
   maxLength?: number
 }) {
-  if (text.length <= maxLength) return <span className="cell-preview-plain">{text}</span>
-  return <button className="cell-preview" type="button" title={`Xem đầy đủ ${label}`} onClick={onExpand}>
-    {text.slice(0, maxLength).trimEnd()}…
-  </button>
+  const hasUrl = /https?:\/\//i.test(text)
+
+  if (text.length <= maxLength) {
+    return <span className="cell-preview-plain">{renderWithLinks(text, true)}</span>
+  }
+
+  if (hasUrl) {
+    return (
+      <span className="cell-preview-wrap">
+        <span className="cell-preview-content-inline">{renderWithLinks(text, true)}</span>
+        <button className="cell-preview-more" type="button" title={`Xem chi tiết ${label}`} onClick={onExpand}>
+          [Xem thêm]
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <button className="cell-preview" type="button" title={`Xem đầy đủ ${label}`} onClick={onExpand}>
+      {text.slice(0, maxLength).trimEnd()}…
+    </button>
+  )
 }
 
 export default function TaskTimeline() {
@@ -468,7 +487,7 @@ export default function TaskTimeline() {
             <h2 id="text-preview-title">{expandedText.label}</h2>
             <button className="modal-close-button" type="button" aria-label="Đóng" onClick={() => setExpandedText(null)}><X size={21} /></button>
           </header>
-          <div className="text-preview-content">{expandedText.text}</div>
+          <div className="text-preview-content">{renderWithLinks(expandedText.text)}</div>
         </section>
       </div>}
 

@@ -308,6 +308,13 @@ a { color: inherit; }
 .cell-preview, .cell-preview-plain { display: inline; max-width: 100%; padding: 0; border: 0; color: #4b5563; background: none; font: inherit; font-size: 12px; line-height: 1.45; text-align: left; white-space: pre-line; overflow-wrap: anywhere; }
 .cell-preview { cursor: pointer; text-decoration: underline; text-decoration-color: #b5c7ca; text-decoration-style: dotted; text-underline-offset: 2px; }
 .cell-preview:hover { color: var(--teal-dark); text-decoration-color: var(--teal); }
+.cell-preview-wrap { display: inline; }
+.cell-preview-more { display: inline-block; margin-left: 6px; padding: 0; border: 0; background: transparent; color: #2f80ed; font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.cell-preview-more:hover { color: #1f3a93; }
+.text-hyperlink { display: inline-flex; align-items: center; gap: 3px; color: #1f3a93; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; word-break: break-all; transition: color .15s ease; }
+.text-hyperlink:hover { color: #2f80ed; text-decoration: underline; }
+.inline-link-icon { flex-shrink: 0; opacity: .75; }
+.bug-desc-line, .bug-cell-with-links { display: inline; font-size: 12px; line-height: 1.45; }
 .task-title-cell .cell-preview { color: inherit; font-weight: inherit; }
 .text-preview-backdrop { z-index: 1100; }
 .text-preview-modal { width: min(100%, 620px); max-height: min(82vh, 680px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e1ebed; border-radius: 14px; background: #fff; box-shadow: 0 24px 80px rgba(16, 43, 63, .24); }
@@ -588,7 +595,10 @@ a { color: inherit; }
 :root[data-theme="dark"] .cell-preview,
 :root[data-theme="dark"] .cell-preview-plain { color: #c9dbf5; }
 :root[data-theme="dark"] .cell-preview:hover,
-:root[data-theme="dark"] .task-link-list a { color: #9dc6ff; }
+:root[data-theme="dark"] .task-link-list a,
+:root[data-theme="dark"] .cell-preview-more { color: #9dc6ff; }
+:root[data-theme="dark"] .text-hyperlink { color: #8ab4f8; }
+:root[data-theme="dark"] .text-hyperlink:hover { color: #c2e7ff; }
 :root[data-theme="dark"] .task-edit-row > td,
 :root[data-theme="dark"] .task-table tr:last-child td,
 :root[data-theme="dark"] .bug-table tr:last-child td { border-color: #31435f; }

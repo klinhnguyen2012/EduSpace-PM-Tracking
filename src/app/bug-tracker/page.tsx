@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Bug as BugIcon, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { renderWithLinks } from '../../lib/linkify'
 
 type BugStatus = 'open' | 'in_progress' | 'fixed' | 'retesting' | 'closed'
 type Bug = {
@@ -293,7 +294,14 @@ export default function BugTracker() {
               <td className="bug-sequence">{index + 1}</td>
               <td className="bug-title-cell">
                 <button className="bug-title-button" type="button" onClick={() => openEditModal(bug)} title="Bấm để xem và sửa">{bug.title}</button>
-                {bug.description && <button className="bug-cell-preview" type="button" onClick={() => setPreviewContent(bug.description ?? '')}>{bug.description}</button>}
+                {bug.description && (
+                  <div className="bug-desc-line">
+                    <span className="bug-desc-text">{renderWithLinks(bug.description, true)}</span>
+                    {bug.description.length > 70 && (
+                      <button className="cell-preview-more" type="button" onClick={() => setPreviewContent(bug.description ?? '')}>[Xem thêm]</button>
+                    )}
+                  </div>
+                )}
               </td>
               <td><div className="bug-pic-list">{bug.pic_ids.length ? bug.pic_ids.map((id) => {
                 const member = teamMembers.find((person) => person.id === id)
@@ -303,8 +311,22 @@ export default function BugTracker() {
               <td><select className={`bug-status-select ${bug.status}`} aria-label={`Trạng thái bug ${bug.title}`} value={bug.status} onChange={(event) => void changeStatus(bug, event.target.value as BugStatus)}>
                 {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select></td>
-              <td>{bug.notes ? <button className="bug-cell-preview" type="button" onClick={() => setPreviewContent(bug.notes ?? '')}>{bug.notes}</button> : <span className="bug-cell-empty">—</span>}</td>
-              <td>{bug.test_result ? <button className="bug-cell-preview" type="button" onClick={() => setPreviewContent(bug.test_result ?? '')}>{bug.test_result}</button> : <span className="bug-cell-empty">—</span>}</td>
+              <td>{bug.notes ? (
+                <div className="bug-cell-with-links">
+                  <span>{renderWithLinks(bug.notes, true)}</span>
+                  {bug.notes.length > 50 && (
+                    <button className="cell-preview-more" type="button" onClick={() => setPreviewContent(bug.notes ?? '')}>[Xem thêm]</button>
+                  )}
+                </div>
+              ) : <span className="bug-cell-empty">—</span>}</td>
+              <td>{bug.test_result ? (
+                <div className="bug-cell-with-links">
+                  <span>{renderWithLinks(bug.test_result, true)}</span>
+                  {bug.test_result.length > 50 && (
+                    <button className="cell-preview-more" type="button" onClick={() => setPreviewContent(bug.test_result ?? '')}>[Xem thêm]</button>
+                  )}
+                </div>
+              ) : <span className="bug-cell-empty">—</span>}</td>
               <td>{renderImages(bug.test_attachments, 'ảnh test')}</td>
               <td className="bug-actions-cell">
                 <button className="bug-action-btn edit" type="button" onClick={() => openEditModal(bug)} title="Cập nhật bug">
@@ -324,7 +346,7 @@ export default function BugTracker() {
       }}>
         <section className="text-preview-modal" role="dialog" aria-modal="true" aria-label="Nội dung đầy đủ">
           <header className="task-modal-header"><h2>Nội dung đầy đủ</h2><button className="modal-close-button" type="button" aria-label="Đóng" onClick={() => setPreviewContent(null)}><X size={21} /></button></header>
-          <div className="text-preview-content">{previewContent}</div>
+          <div className="text-preview-content">{renderWithLinks(previewContent ?? '')}</div>
         </section>
       </div>}
 
