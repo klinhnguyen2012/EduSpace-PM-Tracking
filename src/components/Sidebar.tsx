@@ -1,4 +1,5 @@
-import { BarChart3, Bug, CheckSquare2, LayoutDashboard } from 'lucide-react'
+import { Bug, CheckSquare2, ChevronLeft, ChevronRight, LayoutDashboard } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import type { DashboardPage } from '../types'
 
@@ -8,21 +9,34 @@ const navigation: { id: DashboardPage; label: string; href: string; icon: typeof
   { id: 'bugs', label: 'Bug Tracker', href: '/bug-tracker', icon: Bug },
 ]
 
-type SidebarProps = { activePage: DashboardPage }
+type SidebarProps = {
+  activePage: DashboardPage
+  collapsed: boolean
+  onToggle: () => void
+}
 
-export function Sidebar({ activePage }: SidebarProps) {
+export function Sidebar({ activePage, collapsed, onToggle }: SidebarProps) {
   return (
-    <aside className="sidebar">
-      <Link className="brand" href="/">
-        <span className="brand-mark"><BarChart3 size={21} strokeWidth={2.5} /></span>
-        <span className="brand-copy">
-          <strong>EduSpace</strong>
-          <small>PROJECT SPACE</small>
-        </span>
-      </Link>
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+      <div className="sidebar-top">
+        <Link className="brand" href="/" aria-label="EduSpace">
+          <span className="brand-mark on-blue"><Image src="/eduspace-mark-white.png" alt="EduSpace" width={40} height={40} priority /></span>
+          <span className="brand-copy"><strong>EduSpace</strong></span>
+        </Link>
+        <button
+          className="sidebar-toggle"
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+          aria-expanded={!collapsed}
+          aria-controls="main-navigation"
+          title={collapsed ? 'Mở rộng' : 'Thu gọn'}
+        >
+          {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+        </button>
+      </div>
 
-      <div className="sidebar-section-label">KHÔNG GIAN LÀM VIỆC</div>
-      <nav className="main-nav" aria-label="Điều hướng chính">
+      <nav className="main-nav" id="main-navigation" aria-label="Điều hướng chính">
         {navigation.map(({ id, label, href, icon: Icon }) => (
           <Link
             key={id}
@@ -30,18 +44,14 @@ export function Sidebar({ activePage }: SidebarProps) {
             className={`nav-item${activePage === id ? ' active' : ''}`}
             aria-current={activePage === id ? 'page' : undefined}
             aria-label={label}
+            title={collapsed ? label : undefined}
           >
             <Icon size={18} strokeWidth={1.9} />
             <span>{label}</span>
-            {id === 'timeline' && <span className="nav-pill">V1</span>}
           </Link>
         ))}
       </nav>
 
-      <div className="sidebar-footer">
-        <span className="status-dot" />
-        <span>Nền tảng phiên bản 1</span>
-      </div>
     </aside>
   )
 }

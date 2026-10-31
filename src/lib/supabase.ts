@@ -1,11 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../types'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
 const key =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
 
-let client: ReturnType<typeof createClient> | null = null
+let client: SupabaseClient<Database> | null = null
 
 if (url && key) {
   try {
@@ -14,7 +15,7 @@ if (url && key) {
       parsedUrl.protocol === 'https:' ||
       ['localhost', '127.0.0.1', '[::1]'].includes(parsedUrl.hostname)
     ) {
-      client = createClient(url, key, {
+    client = createClient<Database>(url, key, {
         auth: {
           autoRefreshToken: true,
           detectSessionInUrl: true,

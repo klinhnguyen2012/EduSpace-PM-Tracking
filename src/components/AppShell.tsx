@@ -2,9 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import type { Session } from '@supabase/supabase-js'
-import { ChevronRight, LogOut } from 'lucide-react'
-import { Dashboard } from './Dashboard'
+import { ChevronRight, LogOut, Moon, Sun } from 'lucide-react'
+import Image from 'next/image'
+import { SetupNotice } from './Dashboard'
+import { AuthPanel } from './AuthPanel'
 import { Sidebar } from './Sidebar'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { pageTitles, type DashboardPage } from '../types'
@@ -15,89 +16,144 @@ function pageFromPath(pathname: string): DashboardPage {
   return 'dashboard'
 }
 
+const AUTH_STORAGE_KEY = 'eduspace-auth-user'
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const activePage = pageFromPath(pathname)
-  const [session, setSession] = useState<Session | null>(null)
-  const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
-  const [authError, setAuthError] = useState('')
+  const [currentUser, setCurrentUser] = useState<string | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [signingOut, setSigningOut] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
-    if (!supabase) return
-
-    let isActive = true
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      if (isActive) setSession(currentSession)
-    })
-
-    void supabase.auth.getSession()
-      .then(({ data, error }) => {
-        if (!isActive) return
-        setSession(data.session)
-        if (error) setAuthError(error.message)
-      })
-      .catch((error: unknown) => {
-        if (isActive) setAuthError(error instanceof Error ? error.message : 'Không thể khôi phục phiên đăng nhập.')
-      })
-      .finally(() => {
-        if (isActive) setAuthLoading(false)
-      })
-
-    return () => {
-      isActive = false
-      authListener.subscription.unsubscribe()
-    }
+    const storedTheme = window.localStorage.getItem('eduspace-theme')
+    const initialTheme = storedTheme === 'dark' ? 'dark' : 'light'
+    setTheme(initialTheme)
+    document.documentElement.dataset.theme = initialTheme
   }, [])
 
-  async function handleSignOut() {
-    if (!supabase) return
-    setSigningOut(true)
-    setAuthError('')
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) setAuthError(error.message)
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Không thể đăng xuất. Vui lòng thử lại.')
-    } finally {
-      setSigningOut(false)
+  useEffect(() => {
+    setSidebarCollapsed(window.localStorage.getItem('eduspace-sidebar') === 'collapsed')
+  }, [])
+
+  useEffect(() => {
+    const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY)
+    if (storedUser) {
+      setCurrentUser(storedUser)
+    }
+    setAuthLoading(false)
+  }, [])
+
+  function toggleTheme() {
+    const nextTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(nextTheme)
+    document.documentElement.dataset.theme = nextTheme
+    window.localStorage.setItem('eduspace-theme', nextTheme)
+  }
+
+  function toggleSidebar() {
+    const nextCollapsed = !sidebarCollapsed
+    setSidebarCollapsed(nextCollapsed)
+    window.localStorage.setItem('eduspace-sidebar', nextCollapsed ? 'collapsed' : 'expanded')
+  }
+
+  function handleLoginSuccess(username: string) {
+    setCurrentUser(username)
+    window.localStorage.setItem(AUTH_STORAGE_KEY, username)
+
+    // Cố gắng đăng nhập ngầm vào Supabase Auth nếu user admin đã được cấu hình,
+    // nhưng không chặn truy cập nếu tài khoản Supabase Auth chưa được tạo.
+    if (supabase) {
+      void supabase.auth.signInWithPassword({
+        email: 'admin@eduspace.vn',
+        password: 'admin123',
+      }).catch(() => {
+        // Bỏ qua lỗi ngầm, client-side session admin vẫn hợp lệ
+      })
     }
   }
 
+  async function handleSignOut() {
+    setSigningOut(true)
+    window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    if (supabase) {
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        // Bỏ qua lỗi sign out từ Supabase nếu có
+      }
+    }
+    setCurrentUser(null)
+    setSigningOut(false)
+  }
+
   const pageTitle = pageTitles[activePage]
-  const initials = session?.user.email?.slice(0, 1) ?? 'E'
+  const initials = currentUser ? currentUser.slice(0, 1).toUpperCase() : 'A'
+
+  if (authLoading) {
+    return (
+      <main className="auth-screen">
+        <div className="loading-state" role="status">
+          <span className="loading-ring" /> Đang tải workspace…
+        </div>
+      </main>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <main className="auth-screen">
+        <button
+          className="theme-toggle auth-theme-toggle"
+          type="button"
+          onClick={toggleTheme}
+          aria-pressed={theme === 'dark'}
+          aria-label={theme === 'light' ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng'}
+          title={theme === 'light' ? 'Giao diện tối' : 'Giao diện sáng'}
+        >
+          {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+        </button>
+        <div className="auth-content">
+          {isSupabaseConfigured && supabase ? (
+            <AuthPanel onSuccess={handleLoginSuccess} />
+          ) : (
+            <SetupNotice />
+          )}
+        </div>
+      </main>
+    )
+  }
 
   return (
-    <div className="app-shell">
-      <Sidebar activePage={activePage} />
-      <main className="main-area">
+    <div className={`app-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <Sidebar activePage={activePage} collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      <main className={`main-area${activePage === 'dashboard' ? ' dashboard-main-area' : ''}`}>
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><ChevronRight size={14} /><strong>{pageTitle}</strong></div>
           <div className="topbar-right">
-            <span className="phase-chip">V1 · NỀN TẢNG</span>
-            {session && <>
-              <span className="user-avatar" aria-label={session.user.email ?? 'Tài khoản'}>{initials}</span>
-              <button className="signout-button" type="button" onClick={handleSignOut} disabled={signingOut}>
-                <LogOut size={15} /> <span>{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
-              </button>
-            </>}
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={toggleTheme}
+              aria-pressed={theme === 'dark'}
+              aria-label={theme === 'light' ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng'}
+              title={theme === 'light' ? 'Giao diện tối' : 'Giao diện sáng'}
+            >
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+            <span className="user-avatar" aria-label={`Tài khoản: ${currentUser}`} title={`Tài khoản: ${currentUser}`}>
+              {initials}
+            </span>
+            <button className="signout-button" type="button" onClick={handleSignOut} disabled={signingOut}>
+              <LogOut size={15} /> <span>{signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
+            </button>
           </div>
         </header>
 
         <div className="page-content">
-          {authLoading ? (
-            <div className="loading-state" role="status"><span className="loading-ring" /> Đang kiểm tra phiên đăng nhập…</div>
-          ) : session ? (
-            <>
-              {authError && <div className="auth-error-banner" role="alert">{authError}</div>}
-              {children}
-            </>
-          ) : (
-            <>
-              {authError && <div className="auth-error-banner" role="alert">{authError}</div>}
-              <Dashboard authenticated={false} />
-            </>
-          )}
+          {children}
           <footer className="page-footer"><span>EduSpace PM Dashboard</span><span>Thiết kế cho đội ngũ dự án</span></footer>
         </div>
       </main>

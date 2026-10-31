@@ -6,6 +6,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'EduSpace PM Dashboard',
   description: 'Quản lý tiến độ dự án EduSpace.',
+  icons: { icon: '/eduspace-mark.png', apple: '/eduspace-mark.png' },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

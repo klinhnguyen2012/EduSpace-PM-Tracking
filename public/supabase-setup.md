@@ -41,11 +41,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 Không thêm dấu nháy quanh giá trị. File `.env.local` đã được loại khỏi Git.
 
-## 4. Tạo tài khoản đăng nhập thử
+## 4. Tài khoản dùng chung workspace
 
-1. Trong Supabase Dashboard, mở **Authentication → Users**.
-2. Dùng **Add user** để tạo người dùng thử bằng email của bạn và một mật khẩu mới, hoặc để chế độ đăng ký bật rồi dùng **Đăng ký** trên app.
-3. Nếu project yêu cầu xác nhận email, mở email và bấm liên kết xác nhận trước khi đăng nhập.
+Workspace sử dụng tài khoản đăng nhập chung cho cả đội ngũ:
+- **Tên đăng nhập:** `admin`
+- **Mật khẩu:** `admin123`
+
+Không cần đăng ký email cá nhân hay xác nhận email. Bạn chỉ cần nhập đúng tài khoản chung này vào form đăng nhập là có thể truy cập toàn bộ tính năng và dữ liệu workspace.
+
+Nếu chạy migrations trong thư mục `supabase/migrations/`, quyền truy cập cho tài khoản chung (anon / shared) đã được cấu hình sẵn trong migration `20261031180000_allow_anon_access_for_shared_auth.sql`.
 
 ## 5. Chạy và đăng nhập
 
