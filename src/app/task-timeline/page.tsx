@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { ImagePlus, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { ImagePlus, Maximize2, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { memberColor, teamMemberNames } from '../../lib/task-colors'
 import { renderWithLinks } from '../../lib/linkify'
@@ -59,34 +59,36 @@ function TextPreview({
   label,
   text,
   onExpand,
-  maxLength = 58,
+  maxLength = 80,
 }: {
   label: string
   text: string
   onExpand: () => void
   maxLength?: number
 }) {
-  const hasUrl = /https?:\/\//i.test(text)
+  const nonUrlText = text.replace(/(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g, '').trim()
+  const lines = text.split('\n').filter((l) => l.trim().length > 0)
 
-  if (text.length <= maxLength) {
+  // Nếu text ngắn hoặc chỉ là text kèm link ngắn (dưới 80 ký tự chữ thực tế và dưới 2 dòng):
+  if ((nonUrlText.length <= maxLength && lines.length <= 2) || text.length <= maxLength) {
     return <span className="cell-preview-plain">{renderWithLinks(text, true)}</span>
   }
 
-  if (hasUrl) {
-    return (
-      <span className="cell-preview-wrap">
-        <span className="cell-preview-content-inline">{renderWithLinks(text, true)}</span>
-        <button className="cell-preview-more" type="button" title={`Xem chi tiết ${label}`} onClick={onExpand}>
-          [Xem thêm]
-        </button>
-      </span>
-    )
-  }
-
   return (
-    <button className="cell-preview" type="button" title={`Xem đầy đủ ${label}`} onClick={onExpand}>
-      {text.slice(0, maxLength).trimEnd()}…
-    </button>
+    <div className="cell-expand-box">
+      <div className="cell-expand-fade">
+        {renderWithLinks(text, true)}
+      </div>
+      <button
+        className="cell-expand-trigger"
+        type="button"
+        title={`Xem đầy đủ ${label}`}
+        onClick={onExpand}
+      >
+        <Maximize2 size={11} aria-hidden="true" />
+        <span>Mở rộng</span>
+      </button>
+    </div>
   )
 }
 

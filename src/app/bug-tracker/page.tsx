@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Bug as BugIcon, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Bug as BugIcon, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { renderWithLinks } from '../../lib/linkify'
 
@@ -297,8 +297,11 @@ export default function BugTracker() {
                 {bug.description && (
                   <div className="bug-desc-line">
                     <span className="bug-desc-text">{renderWithLinks(bug.description, true)}</span>
-                    {bug.description.length > 70 && (
-                      <button className="cell-preview-more" type="button" onClick={() => setPreviewContent(bug.description ?? '')}>[Xem thêm]</button>
+                    {bug.description.replace(/(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g, '').trim().length > 80 && (
+                      <button className="cell-expand-trigger" type="button" onClick={() => setPreviewContent(bug.description ?? '')} title="Xem chi tiết">
+                        <Maximize2 size={11} aria-hidden="true" />
+                        <span>Mở rộng</span>
+                      </button>
                     )}
                   </div>
                 )}
@@ -314,16 +317,22 @@ export default function BugTracker() {
               <td>{bug.notes ? (
                 <div className="bug-cell-with-links">
                   <span>{renderWithLinks(bug.notes, true)}</span>
-                  {bug.notes.length > 50 && (
-                    <button className="cell-preview-more" type="button" onClick={() => setPreviewContent(bug.notes ?? '')}>[Xem thêm]</button>
+                  {bug.notes.replace(/(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g, '').trim().length > 60 && (
+                    <button className="cell-expand-trigger" type="button" onClick={() => setPreviewContent(bug.notes ?? '')} title="Xem chi tiết">
+                      <Maximize2 size={11} aria-hidden="true" />
+                      <span>Mở rộng</span>
+                    </button>
                   )}
                 </div>
               ) : <span className="bug-cell-empty">—</span>}</td>
               <td>{bug.test_result ? (
                 <div className="bug-cell-with-links">
                   <span>{renderWithLinks(bug.test_result, true)}</span>
-                  {bug.test_result.length > 50 && (
-                    <button className="cell-preview-more" type="button" onClick={() => setPreviewContent(bug.test_result ?? '')}>[Xem thêm]</button>
+                  {bug.test_result.replace(/(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g, '').trim().length > 60 && (
+                    <button className="cell-expand-trigger" type="button" onClick={() => setPreviewContent(bug.test_result ?? '')} title="Xem chi tiết">
+                      <Maximize2 size={11} aria-hidden="true" />
+                      <span>Mở rộng</span>
+                    </button>
                   )}
                 </div>
               ) : <span className="bug-cell-empty">—</span>}</td>

@@ -3,10 +3,18 @@ import { ExternalLink } from 'lucide-react'
 
 const URL_REGEX = /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g
 
-function formatDisplayUrl(url: string, maxLen = 42): string {
+function formatDisplayUrl(url: string, maxLen = 34): string {
   try {
     const parsed = new URL(url)
     const host = parsed.hostname.replace(/^www\./, '')
+    
+    // Tên nhãn thân thiện cho các dịch vụ phổ biến nếu muốn ngắn gọn
+    if (host.includes('docs.google.com')) {
+      if (parsed.pathname.includes('/document/')) return 'docs.google.com/document/…'
+      if (parsed.pathname.includes('/spreadsheets/')) return 'docs.google.com/sheets/…'
+      return 'docs.google.com/…'
+    }
+
     const path = parsed.pathname === '/' ? '' : parsed.pathname
     const display = `${host}${path}`
     if (display.length > maxLen) {
@@ -49,3 +57,4 @@ export function renderWithLinks(content: string, compact = false): ReactNode {
     return part
   })
 }
+
