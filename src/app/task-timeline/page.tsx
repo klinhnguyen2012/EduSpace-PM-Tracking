@@ -14,7 +14,6 @@ type Task = {
   id: string
   title: string
   description: string | null
-  output: string | null
   status: TaskStatus
   priority: TaskPriority | null
   start_date: string | null
@@ -37,7 +36,6 @@ type TaskDetailsDraft = {
   startDate: string
   deadline: string
   priority: TaskPriority
-  output: string
   links: string
   notes: string
   feedback: string
@@ -148,7 +146,7 @@ export default function TaskTimeline() {
     setError('')
     const taskResult = await client
       .from('tasks')
-      .select('id,title,description,output,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
+      .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
       .order('created_at', { ascending: true })
 
     if (taskResult.error) setError(`Không tải được task: ${taskResult.error.message}`)
@@ -246,7 +244,7 @@ export default function TaskTimeline() {
           assignee_names: assigneeNames,
           attachments: uploadedPaths,
         })
-        .select('id,title,description,output,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
+        .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
         .single()
       if (insertError) throw insertError
 
@@ -309,7 +307,6 @@ export default function TaskTimeline() {
       startDate: task.start_date ?? '',
       deadline: task.deadline ?? '',
       priority: task.priority ?? 'P1',
-      output: task.output ?? '',
       links: task.links.join('\n'),
       notes: task.notes ?? '',
       feedback: task.feedback ?? '',
@@ -334,7 +331,6 @@ export default function TaskTimeline() {
         start_date: draft.startDate || null,
         deadline: draft.deadline || null,
         priority: draft.priority,
-        output: draft.output.trim() || null,
         links: draft.links.split('\n').map((value) => value.trim()).filter(Boolean),
         notes: draft.notes.trim() || null,
         feedback: draft.feedback.trim() || null,
@@ -354,7 +350,6 @@ export default function TaskTimeline() {
         start_date: draft.startDate || null,
         deadline: draft.deadline || null,
         priority: draft.priority,
-        output: draft.output.trim() || null,
         links: draft.links.split('\n').map((value) => value.trim()).filter(Boolean),
         notes: draft.notes.trim() || null,
         feedback: draft.feedback.trim() || null,
@@ -478,7 +473,7 @@ export default function TaskTimeline() {
         ) : (
           <div className="task-table-wrap">
             <table className="task-table">
-              <thead><tr><th>STT</th><th>PIC</th><th>Deadline</th><th>Công việc</th><th>Output cụ thể</th><th>Ưu tiên</th><th>Trạng thái</th><th>Cập nhật</th><th>Ảnh</th><th aria-label="Thao tác" /></tr></thead>
+              <thead><tr><th>STT</th><th>PIC</th><th>Deadline</th><th>Công việc</th><th>Ưu tiên</th><th>Trạng thái</th><th>Cập nhật</th><th>Ảnh</th><th aria-label="Thao tác" /></tr></thead>
               <tbody>
                   {visibleTasks.map((task) => (
                     <Fragment key={task.id}>
@@ -498,7 +493,6 @@ export default function TaskTimeline() {
                           {task.description && <small><TextPreview label="mô tả" text={task.description} onExpand={() => setExpandedText({ label: `Mô tả · ${task.title}`, text: task.description! })} maxLength={65} showExpandButton={false} /></small>}
                         </div>
                       </td>
-                      <td className="task-output-cell">{task.output ? <TextPreview label="output" text={task.output} onExpand={() => setExpandedText({ label: `Output cụ thể · ${task.title}`, text: task.output! })} /> : '—'}</td>
                       <td>{task.priority ? <span className={`priority-tag ${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span> : '—'}</td>
                       <td><select className={`task-status-select status-${task.status}`} aria-label={`Trạng thái ${task.title}`} value={task.status} onChange={(event) => void changeStatus(task, event.target.value as TaskStatus)}>
                         {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -528,7 +522,7 @@ export default function TaskTimeline() {
                         <button className="icon-button danger" type="button" aria-label={`Xóa ${task.title}`} onClick={() => void deleteTask(task)}><Trash2 size={16} /></button>
                       </div></td>
                     </tr>
-                    {editingDetails?.taskId === task.id && <tr className="task-edit-row"><td colSpan={10}>
+                    {editingDetails?.taskId === task.id && <tr className="task-edit-row"><td colSpan={9}>
                       <form className="task-edit-form" onSubmit={(event) => void saveTaskDetails(event, task)}>
                         <label className="task-field task-title-field"><span>Tiêu đề <b>*</b></span><input value={editingDetails.title} onChange={(event) => setEditingDetails({ ...editingDetails, title: event.target.value })} placeholder="Tiêu đề công việc" required maxLength={200} /></label>
                         <div className="task-modal-grid">
@@ -541,7 +535,6 @@ export default function TaskTimeline() {
                           <span>{name}</span>
                         </label>)}</div></div>
                         <label className="task-field"><span>Mô tả công việc</span><textarea rows={3} value={editingDetails.description} onChange={(event) => setEditingDetails({ ...editingDetails, description: event.target.value })} placeholder="Cập nhật mô tả chi tiết (hỗ trợ xuống dòng)" /></label>
-                        <label className="task-field"><span>Output cụ thể</span><textarea rows={3} value={editingDetails.output} onChange={(event) => setEditingDetails({ ...editingDetails, output: event.target.value })} placeholder="Kết quả cần bàn giao" /></label>
                         <label className="task-field"><span>Link làm (mỗi link một dòng)</span><textarea rows={3} value={editingDetails.links} onChange={(event) => setEditingDetails({ ...editingDetails, links: event.target.value })} placeholder="https://..." /></label>
                         <label className="task-field"><span>Ghi chú / Khó khăn</span><textarea rows={3} value={editingDetails.notes} onChange={(event) => setEditingDetails({ ...editingDetails, notes: event.target.value })} placeholder="Ghi chú tiến độ" /></label>
                         <label className="task-field"><span>Feedback</span><textarea rows={3} value={editingDetails.feedback} onChange={(event) => setEditingDetails({ ...editingDetails, feedback: event.target.value })} placeholder="Feedback cho task" /></label>

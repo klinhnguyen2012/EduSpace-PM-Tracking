@@ -305,7 +305,6 @@ a { color: inherit; }
 .task-table .task-title-cell { min-width: 0; max-width: none; }
 .task-table .task-title-cell strong { display: block; color: #1f2a37; font-size: 13px; }
 .task-table .task-title-cell small { display: block; margin-top: 6px; color: #64748b; font-size: 12px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
-.task-table .task-output-cell { min-width: 0; max-width: none; }
 .task-table .task-updates-cell { min-width: 0; max-width: none; vertical-align: top; }
 .task-updates { display: grid; gap: 7px; }
 .task-update-line { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: start; gap: 7px; line-height: 1.45; }

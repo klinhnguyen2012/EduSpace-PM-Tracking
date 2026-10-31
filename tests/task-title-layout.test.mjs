@@ -15,3 +15,11 @@ test('places the task expand button beside the title at the right edge', async (
   assert.match(headerStyles, /display:\s*flex/)
   assert.match(headerStyles, /justify-content:\s*space-between/)
 })
+
+test('removes output from the task table and create/edit workflow', async () => {
+  const page = await readFile(new URL('../src/app/task-timeline/page.tsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../src/app/globals.css', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(page, /\boutput\b|Output cụ thể/i)
+  assert.doesNotMatch(css, /task-output-cell/)
+})
