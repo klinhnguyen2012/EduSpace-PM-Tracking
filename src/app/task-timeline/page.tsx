@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { ImagePlus, Maximize2, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { ImagePlus, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { memberColor, teamMemberNames } from '../../lib/task-colors'
 import { renderWithLinks } from '../../lib/linkify'
@@ -31,7 +31,11 @@ type Task = {
 
 type TaskDetailsDraft = {
   taskId: string
+  title: string
   description: string
+  startDate: string
+  deadline: string
+  priority: TaskPriority
   output: string
   links: string
   notes: string
@@ -61,17 +65,19 @@ function TextPreview({
   text,
   onExpand,
   maxLength = 80,
+  showExpandButton = true,
 }: {
   label: string
   text: string
   onExpand: () => void
   maxLength?: number
+  showExpandButton?: boolean
 }) {
   const nonUrlText = text.replace(/(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g, '').trim()
   const lines = text.split('\n').filter((l) => l.trim().length > 0)
+  const isTruncated = !((nonUrlText.length <= maxLength && lines.length <= 2) || text.length <= maxLength)
 
-  // Nếu text ngắn hoặc chỉ là text kèm link ngắn (dưới 80 ký tự chữ thực tế và dưới 2 dòng):
-  if ((nonUrlText.length <= maxLength && lines.length <= 2) || text.length <= maxLength) {
+  if (!isTruncated) {
     return <span className="cell-preview-plain">{renderWithLinks(text, true)}</span>
   }
 
@@ -80,16 +86,32 @@ function TextPreview({
       <div className="cell-expand-fade">
         {renderWithLinks(text, true)}
       </div>
-      <button
-        className="cell-expand-trigger"
-        type="button"
-        title={`Xem đầy đủ ${label}`}
-        onClick={onExpand}
-      >
-        <Maximize2 size={11} aria-hidden="true" />
-        <span>Mở rộng</span>
-      </button>
+      {showExpandButton && (
+        <button
+          className="cell-expand-trigger"
+          type="button"
+          title={`Xem đầy đủ ${label}`}
+          aria-label={`Xem đầy đủ ${label}`}
+          onClick={onExpand}
+        >
+          <Maximize2 size={11} aria-hidden="true" />
+        </button>
+      )}
     </div>
+  )
+}
+
+function ExpandButton({ label, onExpand }: { label: string; onExpand: () => void }) {
+  return (
+    <button
+      className="cell-expand-trigger cell-expand-trigger--inline"
+      type="button"
+      title={`Xem đầy đủ ${label}`}
+      aria-label={`Xem đầy đủ task ${label}`}
+      onClick={onExpand}
+    >
+      <Maximize2 size={11} aria-hidden="true" />
+    </button>
   )
 }
 
@@ -280,7 +302,11 @@ export default function TaskTimeline() {
   function toggleTaskDetails(task: Task) {
     setEditingDetails((current) => current?.taskId === task.id ? null : {
       taskId: task.id,
+      title: task.title,
       description: task.description ?? '',
+      startDate: task.start_date ?? '',
+      deadline: task.deadline ?? '',
+      priority: task.priority ?? 'P1',
       output: task.output ?? '',
       links: task.links.join('\n'),
       notes: task.notes ?? '',
@@ -301,7 +327,11 @@ export default function TaskTimeline() {
     const { error: updateError } = await supabase
       .from('tasks')
       .update({
+        title: draft.title.trim() || task.title,
         description: draft.description.trim() || null,
+        start_date: draft.startDate || null,
+        deadline: draft.deadline || null,
+        priority: draft.priority,
         output: draft.output.trim() || null,
         links: draft.links.split('\n').map((value) => value.trim()).filter(Boolean),
         notes: draft.notes.trim() || null,
@@ -317,7 +347,11 @@ export default function TaskTimeline() {
     else {
       setTasks((current) => current.map((item) => item.id === task.id ? {
         ...item,
+        title: draft.title.trim() || task.title,
         description: draft.description.trim() || null,
+        start_date: draft.startDate || null,
+        deadline: draft.deadline || null,
+        priority: draft.priority,
         output: draft.output.trim() || null,
         links: draft.links.split('\n').map((value) => value.trim()).filter(Boolean),
         notes: draft.notes.trim() || null,
@@ -435,7 +469,13 @@ export default function TaskTimeline() {
                         return <span className="assignee-tag" key={name} style={{ backgroundColor: color.background, color: color.color, borderColor: color.border }}>{name}</span>
                       }) : '—'}</div></td>
                       <td className="task-deadline-cell">{task.deadline ? <span>{deadlineDisplay(task.deadline)}</span> : '—'}</td>
-                      <td className="task-title-cell"><strong><TextPreview label={task.title} text={task.title} onExpand={() => setExpandedText({ label: task.title, text: task.title })} /></strong>{task.description && <small><TextPreview label="mô tả" text={task.description} onExpand={() => setExpandedText({ label: `Mô tả · ${task.title}`, text: task.description! })} maxLength={65} /></small>}</td>
+                      <td className="task-title-cell">
+                        <div className="task-title-wrap">
+                          <strong><TextPreview label={task.title} text={task.title} onExpand={() => setExpandedText({ label: task.title, text: task.title })} showExpandButton={false} /></strong>
+                          {task.description && <small><TextPreview label="mô tả" text={task.description} onExpand={() => setExpandedText({ label: `Mô tả · ${task.title}`, text: task.description! })} maxLength={65} showExpandButton={false} /></small>}
+                          <ExpandButton label={task.title} onExpand={() => setExpandedText({ label: task.title, text: [task.title, task.description].filter(Boolean).join('\n\n') })} />
+                        </div>
+                      </td>
                       <td className="task-output-cell">{task.output ? <TextPreview label="output" text={task.output} onExpand={() => setExpandedText({ label: `Output cụ thể · ${task.title}`, text: task.output! })} /> : '—'}</td>
                       <td>{task.priority ? <span className={`priority-tag ${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span> : '—'}</td>
                       <td><select className={`task-status-select status-${task.status}`} aria-label={`Trạng thái ${task.title}`} value={task.status} onChange={(event) => void changeStatus(task, event.target.value as TaskStatus)}>
@@ -453,12 +493,27 @@ export default function TaskTimeline() {
                         {task.attachments.length === 0 && '—'}
                       </div></td>
                       <td><div className="task-actions">
-                        <button className="task-details-button" type="button" aria-expanded={editingDetails?.taskId === task.id} onClick={() => toggleTaskDetails(task)}>{editingDetails?.taskId === task.id ? 'Đóng' : 'Cập nhật'}</button>
+                        <button
+                          className="task-details-button"
+                          type="button"
+                          aria-label={editingDetails?.taskId === task.id ? `Đóng chỉnh sửa ${task.title}` : `Sửa task ${task.title}`}
+                          title={editingDetails?.taskId === task.id ? `Đóng chỉnh sửa ${task.title}` : `Sửa task ${task.title}`}
+                          aria-expanded={editingDetails?.taskId === task.id}
+                          onClick={() => toggleTaskDetails(task)}
+                        >
+                          <Pencil size={15} aria-hidden="true" />
+                        </button>
                         <button className="icon-button danger" type="button" aria-label={`Xóa ${task.title}`} onClick={() => void deleteTask(task)}><Trash2 size={16} /></button>
                       </div></td>
                     </tr>
                     {editingDetails?.taskId === task.id && <tr className="task-edit-row"><td colSpan={10}>
                       <form className="task-edit-form" onSubmit={(event) => void saveTaskDetails(event, task)}>
+                        <label className="task-field task-title-field"><span>Tiêu đề <b>*</b></span><input value={editingDetails.title} onChange={(event) => setEditingDetails({ ...editingDetails, title: event.target.value })} placeholder="Tiêu đề công việc" required maxLength={200} /></label>
+                        <div className="task-modal-grid">
+                          <label className="task-field"><span>Ngày bắt đầu</span><input type="date" value={editingDetails.startDate} onChange={(event) => setEditingDetails({ ...editingDetails, startDate: event.target.value })} /></label>
+                          <label className="task-field"><span>Deadline</span><input type="date" value={editingDetails.deadline} onChange={(event) => setEditingDetails({ ...editingDetails, deadline: event.target.value })} /></label>
+                          <label className="task-field"><span>Ưu tiên</span><select value={editingDetails.priority} onChange={(event) => setEditingDetails({ ...editingDetails, priority: event.target.value as TaskPriority })}>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                        </div>
                         <div className="task-field task-pic-edit-field"><span>PIC · Có thể chọn nhiều người</span><div className="task-pic-picker">{Array.from(new Set([...teamMemberNames, ...editingDetails.picNames])).map((name) => <label className="task-pic-option" key={name}>
                           <input type="checkbox" checked={editingDetails.picNames.includes(name)} onChange={() => setEditingDetails({ ...editingDetails, picNames: editingDetails.picNames.includes(name) ? editingDetails.picNames.filter((pic) => pic !== name) : [...editingDetails.picNames, name] })} />
                           <span>{name}</span>
@@ -474,7 +529,7 @@ export default function TaskTimeline() {
                         </div>
                         <div className="task-edit-actions">
                           <button className="secondary-button" type="button" onClick={() => setEditingDetails(null)}>Hủy</button>
-                          <button className="primary-button" type="submit" disabled={savingDetails}>{savingDetails ? 'Đang lưu…' : 'Lưu cập nhật'}</button>
+                          <button className="primary-button" type="submit" disabled={savingDetails}>{savingDetails ? 'Đang lưu…' : 'Lưu thay đổi'}</button>
                         </div>
                       </form>
                     </td></tr>}
