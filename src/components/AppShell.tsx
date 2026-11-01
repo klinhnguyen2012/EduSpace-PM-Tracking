@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ChevronRight, LogOut, Moon, Sun } from 'lucide-react'
 import Image from 'next/image'
 import { SetupNotice } from './Dashboard'
 import { AuthPanel } from './AuthPanel'
 import { Sidebar } from './Sidebar'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { inviteCallbackPath } from '../lib/auth-redirect'
 import { pageTitles, type DashboardPage } from '../types'
 
 function pageFromPath(pathname: string): DashboardPage {
@@ -18,6 +19,7 @@ function pageFromPath(pathname: string): DashboardPage {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const activePage = pageFromPath(pathname)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -41,6 +43,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       setAuthLoading(false)
       return
     }
+    const inviteCallback = pathname === '/' ? inviteCallbackPath(window.location.search) : null
+    if (inviteCallback) {
+      router.replace(inviteCallback)
+      return
+    }
     let mounted = true
     void supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
@@ -59,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [pathname, router])
 
   function toggleTheme() {
     const nextTheme = theme === 'light' ? 'dark' : 'light'
