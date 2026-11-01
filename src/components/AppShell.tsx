@@ -8,7 +8,7 @@ import { SetupNotice } from './Dashboard'
 import { AuthPanel } from './AuthPanel'
 import { Sidebar } from './Sidebar'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { inviteCallbackPath } from '../lib/auth-redirect'
+import { inviteCallbackPath, inviteSessionFromHash } from '../lib/auth-redirect'
 import { pageTitles, type DashboardPage } from '../types'
 
 function pageFromPath(pathname: string): DashboardPage {
@@ -43,21 +43,39 @@ export function AppShell({ children }: { children: ReactNode }) {
       setAuthLoading(false)
       return
     }
+    let mounted = true
     const inviteCallback = pathname === '/' ? inviteCallbackPath(window.location.search) : null
+    const inviteSession = pathname === '/' ? inviteSessionFromHash(window.location.hash) : null
     if (inviteCallback) {
       router.replace(inviteCallback)
-      return
+    } else if (inviteSession) {
+      void supabase.auth.setSession(inviteSession).then(({ data, error }) => {
+        if (!mounted) return
+        if (error || !data.session) {
+          setCurrentUser(null)
+          setAuthLoading(false)
+          return
+        }
+        window.history.replaceState(null, '', window.location.pathname)
+        setCurrentUser(data.session.user.email ?? null)
+        setAuthLoading(false)
+        router.replace('/auth/set-password')
+      }).catch(() => {
+        if (!mounted) return
+        setCurrentUser(null)
+        setAuthLoading(false)
+      })
+    } else {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (!mounted) return
+        setCurrentUser(data.session?.user.email ?? null)
+        setAuthLoading(false)
+      }).catch(() => {
+        if (!mounted) return
+        setCurrentUser(null)
+        setAuthLoading(false)
+      })
     }
-    let mounted = true
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setCurrentUser(data.session?.user.email ?? null)
-      setAuthLoading(false)
-    }).catch(() => {
-      if (!mounted) return
-      setCurrentUser(null)
-      setAuthLoading(false)
-    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUser(session?.user.email ?? null)
       setAuthLoading(false)
