@@ -3,12 +3,12 @@
 import { Fragment, useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { ImagePlus, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { memberColor, teamMemberNames } from '../../lib/task-colors'
+import { memberColor, memberEmail, memberEmails, memberName, teamMemberNames } from '../../lib/task-colors'
 import { renderWithLinks } from '../../lib/linkify'
 
 type TaskStatus = 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
 type TaskPriority = 'P0' | 'P1' | 'P2'
-type TaskView = 'active' | 'completed'
+type TaskView = 'active' | 'qa' | 'completed'
 
 type Task = {
   id: string
@@ -20,6 +20,8 @@ type Task = {
   deadline: string | null
   assignee_name: string | null
   assignee_names: string[]
+  assignee_emails: string[] | null
+  qa_assignee_email: string | null
   links: string[]
   notes: string | null
   feedback: string | null
@@ -42,6 +44,8 @@ type TaskDetailsDraft = {
   isBlocked: boolean
   blockerReason: string
   picNames: string[]
+  qaAssigneeEmail: string
+  attachments: string[]
 }
 
 const statusLabels: Record<TaskStatus, string> = {
@@ -127,6 +131,8 @@ export default function TaskTimeline() {
   const [priority, setPriority] = useState<TaskPriority>('P1')
   const [assigneeNames, setAssigneeNames] = useState<string[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([])
+  const [removedTaskImagePaths, setRemovedTaskImagePaths] = useState<string[]>([])
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
   const [editingDetails, setEditingDetails] = useState<TaskDetailsDraft | null>(null)
   const [savingDetails, setSavingDetails] = useState(false)
@@ -146,12 +152,15 @@ export default function TaskTimeline() {
     setError('')
     const taskResult = await client
       .from('tasks')
-      .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
+      .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,assignee_emails,qa_assignee_email,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
       .order('created_at', { ascending: true })
 
     if (taskResult.error) setError(`Không tải được task: ${taskResult.error.message}`)
     else {
-      const rows = taskResult.data.map((task) => ({ ...task, assignee_names: task.assignee_names ?? (task.assignee_name ? [task.assignee_name] : []) })) as Task[]
+      const rows = taskResult.data.map((task) => {
+        const assigneeNames = task.assignee_names ?? (task.assignee_name ? [task.assignee_name] : [])
+        return { ...task, assignee_names: assigneeNames, assignee_emails: task.assignee_emails?.length ? task.assignee_emails : memberEmails(assigneeNames) }
+      }) as Task[]
       setTasks(rows)
       const signedUrls = await Promise.all(rows.flatMap((task) => task.attachments.map(async (path) => {
         const { data } = await client.storage.from('task-images').createSignedUrl(path, 3600)
@@ -242,13 +251,21 @@ export default function TaskTimeline() {
           priority,
           assignee_name: assigneeNames[0] || null,
           assignee_names: assigneeNames,
+          assignee_emails: memberEmails(assigneeNames),
           attachments: uploadedPaths,
         })
-        .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
+        .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,assignee_emails,qa_assignee_email,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
         .single()
       if (insertError) throw insertError
 
       setTasks((current) => [data as Task, ...current])
+      const assignedEmails = memberEmails(assigneeNames)
+      if (assignedEmails.length) {
+        const { error: notificationError } = await client.functions.invoke('notify-task-email', {
+          body: { event: 'assigned', taskId, recipients: assignedEmails, eventId: crypto.randomUUID() },
+        })
+        if (notificationError) setError(`Task đã tạo nhưng chưa gửi được email PIC: ${notificationError.message}`)
+      }
       if (uploadedPaths.length) {
         const signedUrls = await Promise.all(uploadedPaths.map(async (path) => {
           const { data: signed } = await client.storage.from('task-images').createSignedUrl(path, 3600)
@@ -281,7 +298,22 @@ export default function TaskTimeline() {
       .eq('id', task.id)
 
     if (updateError) setError(`Không cập nhật được trạng thái: ${updateError.message}`)
-    else setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item))
+    else {
+      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item))
+      if (status === 'qa') {
+        setTaskView('qa')
+        if (task.status !== 'qa') {
+          if (!task.qa_assignee_email) setError('Task chuyển sang QA nhưng chưa có người QA được giao.')
+          else {
+            const { error: notificationError } = await supabase.functions.invoke('notify-task-email', {
+              body: { event: 'qa', taskId: task.id, eventId: crypto.randomUUID() },
+            })
+            if (notificationError) setError(`Task đã chuyển sang QA nhưng chưa gửi được email: ${notificationError.message}`)
+          }
+        }
+      }
+      else if (taskView === 'qa') setTaskView(status === 'done' ? 'completed' : 'active')
+    }
   }
 
   async function deleteTask(task: Task) {
@@ -300,6 +332,8 @@ export default function TaskTimeline() {
   }
 
   function toggleTaskDetails(task: Task) {
+    setEditImageFiles([])
+    setRemovedTaskImagePaths([])
     setEditingDetails((current) => current?.taskId === task.id ? null : {
       taskId: task.id,
       title: task.title,
@@ -313,16 +347,62 @@ export default function TaskTimeline() {
       isBlocked: task.is_blocked,
       blockerReason: task.blocker_reason ?? '',
       picNames: task.assignee_names?.length ? task.assignee_names : task.assignee_name ? [task.assignee_name] : [],
+      qaAssigneeEmail: task.qa_assignee_email ?? '',
+      attachments: [...task.attachments],
     })
+  }
+
+  function handleEditImageSelection(event: ChangeEvent<HTMLInputElement>, task: Task) {
+    const selected = Array.from(event.currentTarget.files ?? [])
+    event.currentTarget.value = ''
+    if (!editingDetails || editingDetails.taskId !== task.id) return
+    if (editingDetails.attachments.length + editImageFiles.length + selected.length > 5) {
+      setError('Mỗi task tải lên tối đa 5 ảnh.')
+      return
+    }
+    if (selected.some((file) => !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type))) {
+      setError('Chỉ hỗ trợ ảnh JPG, PNG, WebP hoặc GIF.')
+      return
+    }
+    if (selected.some((file) => file.size > 5 * 1024 * 1024)) {
+      setError('Mỗi ảnh cần nhỏ hơn hoặc bằng 5 MB.')
+      return
+    }
+    setError('')
+    setEditImageFiles((current) => [...current, ...selected])
   }
 
   async function saveTaskDetails(event: FormEvent<HTMLFormElement>, task: Task) {
     event.preventDefault()
     if (!supabase || editingDetails?.taskId !== task.id) return
+    const client = supabase
 
     setSavingDetails(true)
     setError('')
     const draft = editingDetails
+    const uploadedPaths: string[] = []
+    try {
+      for (const file of editImageFiles) {
+        const extension = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1]
+        const path = `${task.id}/${crypto.randomUUID()}.${extension}`
+        const { error: uploadError } = await supabase.storage.from('task-images').upload(path, file, {
+          contentType: file.type,
+          cacheControl: '3600',
+          upsert: false,
+        })
+        if (uploadError) throw uploadError
+        uploadedPaths.push(path)
+      }
+    } catch (uploadError) {
+      if (uploadedPaths.length) await supabase.storage.from('task-images').remove(uploadedPaths)
+      setError(`Không tải được ảnh: ${uploadError instanceof Error ? uploadError.message : 'Vui lòng thử lại.'}`)
+      setSavingDetails(false)
+      return
+    }
+    const attachments = [...draft.attachments, ...uploadedPaths]
+    const previousPicNames = task.assignee_names?.length ? task.assignee_names : task.assignee_name ? [task.assignee_name] : []
+    const picAssignmentsChanged = previousPicNames.length !== draft.picNames.length || previousPicNames.some((name, index) => name !== draft.picNames[index])
+    const qaAssignmentChanged = (task.qa_assignee_email ?? '') !== draft.qaAssigneeEmail
     const { error: updateError } = await supabase
       .from('tasks')
       .update({
@@ -336,13 +416,20 @@ export default function TaskTimeline() {
         feedback: draft.feedback.trim() || null,
         is_blocked: draft.isBlocked,
         blocker_reason: draft.isBlocked ? draft.blockerReason.trim() || null : null,
-        assignee_name: draft.picNames[0] || null,
-        assignee_names: draft.picNames,
+        ...(picAssignmentsChanged ? {
+          assignee_name: draft.picNames[0] || null,
+          assignee_names: draft.picNames,
+          assignee_emails: memberEmails(draft.picNames),
+        } : {}),
+        ...(qaAssignmentChanged ? { qa_assignee_email: draft.qaAssigneeEmail || null } : {}),
+        attachments,
       })
       .eq('id', task.id)
 
-    if (updateError) setError(`Không cập nhật được thông tin task: ${updateError.message}`)
-    else {
+    if (updateError) {
+      if (uploadedPaths.length) await supabase.storage.from('task-images').remove(uploadedPaths)
+      setError(`Không cập nhật được thông tin task: ${updateError.message}`)
+    } else {
       setTasks((current) => current.map((item) => item.id === task.id ? {
         ...item,
         title: draft.title.trim() || task.title,
@@ -355,18 +442,55 @@ export default function TaskTimeline() {
         feedback: draft.feedback.trim() || null,
         is_blocked: draft.isBlocked,
         blocker_reason: draft.isBlocked ? draft.blockerReason.trim() || null : null,
-        assignee_name: draft.picNames[0] || null,
-        assignee_names: draft.picNames,
+        ...(picAssignmentsChanged ? {
+          assignee_name: draft.picNames[0] || null,
+          assignee_names: draft.picNames,
+          assignee_emails: memberEmails(draft.picNames),
+        } : {}),
+        ...(qaAssignmentChanged ? { qa_assignee_email: draft.qaAssigneeEmail || null } : {}),
+        attachments,
       } : item))
+      const qaRecipientChanged = draft.qaAssigneeEmail !== (task.qa_assignee_email ?? '')
+      if (qaRecipientChanged && draft.qaAssigneeEmail && task.status === 'qa') {
+        const { error: notificationError } = await client.functions.invoke('notify-task-email', {
+          body: { event: 'qa', taskId: task.id, eventId: crypto.randomUUID() },
+        })
+        if (notificationError) setError(`QA PIC đã cập nhật nhưng chưa gửi được email: ${notificationError.message}`)
+      }
+      const oldEmails = task.assignee_emails?.length ? task.assignee_emails : memberEmails(task.assignee_names)
+      const addedEmails = memberEmails(draft.picNames).filter((email) => !oldEmails.includes(email))
+      if (addedEmails.length) {
+        const { error: notificationError } = await client.functions.invoke('notify-task-email', {
+          body: { event: 'assigned', taskId: task.id, recipients: addedEmails, eventId: crypto.randomUUID() },
+        })
+        if (notificationError) setError(`Task đã cập nhật nhưng chưa gửi được email PIC mới: ${notificationError.message}`)
+      }
       setEditingDetails(null)
+      setEditImageFiles([])
+
+      const signedUrls = await Promise.all(uploadedPaths.map(async (path) => {
+        const { data } = await client.storage.from('task-images').createSignedUrl(path, 3600)
+        return [path, data?.signedUrl ?? ''] as const
+      }))
+      setImageUrls((current) => {
+        const next = Object.fromEntries(Object.entries(current).filter(([path]) => !removedTaskImagePaths.includes(path)))
+        return { ...next, ...Object.fromEntries(signedUrls.filter(([, url]) => url)) }
+      })
+
+      if (removedTaskImagePaths.length) {
+        const { error: removeError } = await supabase.storage.from('task-images').remove(removedTaskImagePaths)
+        if (removeError) setError(`Task đã cập nhật nhưng có ảnh cũ chưa được xóa khỏi Storage: ${removeError.message}`)
+        setRemovedTaskImagePaths([])
+      }
     }
     setSavingDetails(false)
   }
 
   const orderedTasks = [...tasks].sort((a, b) => a.created_at.localeCompare(b.created_at))
-  const activeTasks = orderedTasks.filter((task) => task.status !== 'done')
+  const activeTasks = orderedTasks.filter((task) => task.status !== 'done' && task.status !== 'qa')
+  const qaTasks = orderedTasks.filter((task) => task.status === 'qa')
   const completedTasks = orderedTasks.filter((task) => task.status === 'done')
-  const visibleTasks = taskView === 'active' ? activeTasks : completedTasks
+  const visibleTasks = taskView === 'active' ? activeTasks : taskView === 'qa' ? qaTasks : completedTasks
   const taskSequence = new Map(visibleTasks.map((task, index) => [task.id, index + 1]))
 
   return (
@@ -457,6 +581,9 @@ export default function TaskTimeline() {
             <button type="button" aria-pressed={taskView === 'active'} onClick={() => setTaskView('active')}>
               Danh sách task <span>{activeTasks.length}</span>
             </button>
+            <button type="button" aria-pressed={taskView === 'qa'} onClick={() => setTaskView('qa')}>
+              Đang QA <span>{qaTasks.length}</span>
+            </button>
             <button type="button" aria-pressed={taskView === 'completed'} onClick={() => setTaskView('completed')}>
               Đã hoàn thành <span>{completedTasks.length}</span>
             </button>
@@ -466,6 +593,8 @@ export default function TaskTimeline() {
           <div className="task-empty">
             {taskView === 'completed'
               ? 'Chưa có task hoàn thành.'
+              : taskView === 'qa'
+                ? 'Chưa có task đang QA.'
               : tasks.length === 0
                 ? 'Chưa có task. Bấm “Tạo task” để tạo công việc đầu tiên.'
                 : 'Không còn task chưa hoàn thành.'}
@@ -498,7 +627,8 @@ export default function TaskTimeline() {
                         {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select></td>
                       <td className="task-updates-cell">
-                        {task.links.length === 0 && !task.notes && !task.feedback && !task.is_blocked && !task.blocker_reason ? '—' : <div className="task-updates">
+                        {task.links.length === 0 && !task.notes && !task.feedback && !task.is_blocked && !task.blocker_reason && !task.qa_assignee_email ? '—' : <div className="task-updates">
+                          {task.qa_assignee_email && <div className="task-update-line"><b>QA PIC</b><span>{memberName(task.qa_assignee_email)}</span></div>}
                           {task.links.map((taskLink, linkIndex) => <div className="task-update-line" key={`${task.id}-link-${linkIndex}`}><b>Link</b><a href={taskLink} target="_blank" rel="noreferrer">Mở link {linkIndex + 1}</a></div>)}
                           {(task.notes || task.blocker_reason || task.is_blocked) && <div className="task-update-line"><b>{task.is_blocked ? 'Blocker' : 'Ghi chú'}</b><span>{task.is_blocked && <strong className="blocker-label">Blocked</strong>}<TextPreview label="ghi chú / blocker" text={[task.blocker_reason, task.notes].filter(Boolean).join('\n') || 'Task đang bị chặn'} onExpand={() => setExpandedText({ label: `Ghi chú / Blocker · ${task.title}`, text: [task.blocker_reason, task.notes].filter(Boolean).join('\n') || 'Task đang bị chặn' })} /></span></div>}
                           {task.feedback && <div className="task-update-line"><b>Feedback</b><TextPreview label="feedback" text={task.feedback} onExpand={() => setExpandedText({ label: `Feedback · ${task.title}`, text: task.feedback! })} /></div>}
@@ -529,11 +659,36 @@ export default function TaskTimeline() {
                           <label className="task-field"><span>Ngày bắt đầu</span><input type="date" value={editingDetails.startDate} onChange={(event) => setEditingDetails({ ...editingDetails, startDate: event.target.value })} /></label>
                           <label className="task-field"><span>Deadline</span><input type="date" value={editingDetails.deadline} onChange={(event) => setEditingDetails({ ...editingDetails, deadline: event.target.value })} /></label>
                           <label className="task-field"><span>Ưu tiên</span><select value={editingDetails.priority} onChange={(event) => setEditingDetails({ ...editingDetails, priority: event.target.value as TaskPriority })}>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                          <label className="task-field"><span>Người QA nhận email khi chuyển sang QA</span><select value={editingDetails.qaAssigneeEmail} onChange={(event) => setEditingDetails({ ...editingDetails, qaAssigneeEmail: event.target.value })}><option value="">Chưa chọn</option>{teamMemberNames.map((name) => <option key={name} value={memberEmail(name) ?? ''}>{name}</option>)}</select></label>
                         </div>
                         <div className="task-field task-pic-edit-field"><span>PIC · Có thể chọn nhiều người</span><div className="task-pic-picker">{Array.from(new Set([...teamMemberNames, ...editingDetails.picNames])).map((name) => <label className="task-pic-option" key={name}>
                           <input type="checkbox" checked={editingDetails.picNames.includes(name)} onChange={() => setEditingDetails({ ...editingDetails, picNames: editingDetails.picNames.includes(name) ? editingDetails.picNames.filter((pic) => pic !== name) : [...editingDetails.picNames, name] })} />
                           <span>{name}</span>
                         </label>)}</div></div>
+                        <div className="task-field task-edit-image-field">
+                          <span>Ảnh đính kèm</span>
+                          {editingDetails.attachments.length > 0 && <div className="task-edit-image-list" aria-label="Ảnh đang đính kèm">
+                            {editingDetails.attachments.map((path) => <div className="task-edit-image-item" key={path}>
+                              {imageUrls[path]
+                                ? <button className="task-image-thumb" type="button" onClick={() => setExpandedImage(imageUrls[path])} aria-label="Xem ảnh đính kèm"><img src={imageUrls[path]} alt="Ảnh task" /></button>
+                                : <span className="task-edit-image-missing">Ảnh</span>}
+                              <button className="task-remove-image" type="button" aria-label="Gỡ ảnh khỏi task" title="Gỡ ảnh" onClick={() => {
+                                setEditingDetails((current) => current ? { ...current, attachments: current.attachments.filter((item) => item !== path) } : current)
+                                setRemovedTaskImagePaths((current) => [...current, path])
+                              }}><X size={12} /></button>
+                            </div>)}
+                          </div>}
+                          <label className="task-image-field task-edit-image-upload">
+                            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={(event) => handleEditImageSelection(event, task)} />
+                            <small>Tối đa 5 ảnh, 5 MB mỗi ảnh.</small>
+                          </label>
+                          {editImageFiles.length > 0 && <div className="selected-images" aria-label="Ảnh mới đang chờ tải lên">
+                            {editImageFiles.map((file, index) => <span className="selected-image" key={`${file.name}-${index}`}>
+                              {file.name}
+                              <button type="button" aria-label={`Bỏ ảnh ${file.name}`} onClick={() => setEditImageFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}><X size={13} /></button>
+                            </span>)}
+                          </div>}
+                        </div>
                         <label className="task-field"><span>Mô tả công việc</span><textarea rows={3} value={editingDetails.description} onChange={(event) => setEditingDetails({ ...editingDetails, description: event.target.value })} placeholder="Cập nhật mô tả chi tiết (hỗ trợ xuống dòng)" /></label>
                         <label className="task-field"><span>Link làm (mỗi link một dòng)</span><textarea rows={3} value={editingDetails.links} onChange={(event) => setEditingDetails({ ...editingDetails, links: event.target.value })} placeholder="https://..." /></label>
                         <label className="task-field"><span>Ghi chú / Khó khăn</span><textarea rows={3} value={editingDetails.notes} onChange={(event) => setEditingDetails({ ...editingDetails, notes: event.target.value })} placeholder="Ghi chú tiến độ" /></label>

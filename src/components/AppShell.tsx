@@ -16,8 +16,6 @@ function pageFromPath(pathname: string): DashboardPage {
   return 'dashboard'
 }
 
-const AUTH_STORAGE_KEY = 'eduspace-auth-user'
-
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const activePage = pageFromPath(pathname)
@@ -39,11 +37,28 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY)
-    if (storedUser) {
-      setCurrentUser(storedUser)
+    if (!supabase) {
+      setAuthLoading(false)
+      return
     }
-    setAuthLoading(false)
+    let mounted = true
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setCurrentUser(data.session?.user.email ?? null)
+      setAuthLoading(false)
+    }).catch(() => {
+      if (!mounted) return
+      setCurrentUser(null)
+      setAuthLoading(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user.email ?? null)
+      setAuthLoading(false)
+    })
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   function toggleTheme() {
@@ -59,28 +74,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.localStorage.setItem('eduspace-sidebar', nextCollapsed ? 'collapsed' : 'expanded')
   }
 
-  function handleLoginSuccess(username: string) {
-    setCurrentUser(username)
-    window.localStorage.setItem(AUTH_STORAGE_KEY, username)
-
-    // Cố gắng đăng nhập ngầm vào Supabase Auth nếu user admin đã được cấu hình,
-    // nhưng không chặn truy cập nếu tài khoản Supabase Auth chưa được tạo.
-    if (supabase) {
-      void supabase.auth.signInWithPassword({
-        email: 'admin@eduspace.vn',
-        password: 'admin123',
-      }).catch(() => {
-        // Bỏ qua lỗi ngầm, client-side session admin vẫn hợp lệ
-      })
-    }
+  function handleLoginSuccess(email: string) {
+    setCurrentUser(email)
   }
 
   async function handleSignOut() {
     setSigningOut(true)
-    window.localStorage.removeItem(AUTH_STORAGE_KEY)
     if (supabase) {
       try {
-        await supabase.auth.signOut()
+        await supabase.auth.signOut({ scope: 'local' })
       } catch {
         // Bỏ qua lỗi sign out từ Supabase nếu có
       }
@@ -91,6 +93,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const pageTitle = pageTitles[activePage]
   const initials = currentUser ? currentUser.slice(0, 1).toUpperCase() : 'A'
+
+  if (pathname.startsWith('/auth/')) {
+    return <main className="auth-screen"><div className="auth-content">{children}</div></main>
+  }
 
   if (authLoading) {
     return (

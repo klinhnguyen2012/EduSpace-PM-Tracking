@@ -14,7 +14,29 @@ const memberColors: Record<string, (typeof memberPalette)[number]> = {
   Linh: memberPalette[4],
 }
 
-export const teamMemberNames = ['Khoa', 'Chiến', 'Trân', 'Linh'] as const
+export const teamMembers = [
+  { name: 'Khoa', email: 'nhkhoa2101@gmail.com' },
+  { name: 'Chiến', email: 'phungtrongchien102@gmail.com' },
+  { name: 'Trân', email: 'tranbui.290703@gmail.com' },
+  { name: 'Linh', email: 'klinhnguyen2012@gmail.com' },
+] as const
+
+export const teamMemberNames = teamMembers.map((member) => member.name)
+
+export function memberEmail(name: string) {
+  return teamMembers.find((member) => member.name === name)?.email ?? null
+}
+
+export function memberEmails(names: readonly string[]) {
+  return names.flatMap((name) => {
+    const email = memberEmail(name)
+    return email ? [email] : []
+  })
+}
+
+export function memberName(email: string | null) {
+  return teamMembers.find((member) => member.email === email)?.name ?? email
+}
 
 export function memberColor(name: string) {
   if (memberColors[name]) return memberColors[name]

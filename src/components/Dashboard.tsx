@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, ArrowUpRight, Bug, CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, CircleHelp, Clock3, KeyRound, ListTodo, Timer } from 'lucide-react'
+import { ArrowUpRight, Bug, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock3, KeyRound, ListTodo, Timer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { memberColor } from '../lib/task-colors'
 
@@ -16,11 +16,8 @@ type DashboardTask = {
   start_date: string | null
   deadline: string | null
   status: TaskStatus
-  is_blocked: boolean
-  blocker_reason: string | null
 }
 type DashboardBug = { id: string; status: BugStatus }
-type Reminder = { task: DashboardTask; label: string; kind: 'blocked' | 'overdue' | 'soon' | 'incomplete'; daysLeft: number }
 
 function taskPics(task: DashboardTask) {
   return task.assignee_names?.length ? task.assignee_names : task.assignee_name ? [task.assignee_name] : []
@@ -60,25 +57,6 @@ function shortDate(date: string) {
 function formatDate(date: string) {
   return new Date(`${date}T12:00:00+07:00`).toLocaleDateString('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function createReminders(tasks: DashboardTask[], today: string): Reminder[] {
-  return tasks.flatMap<Reminder>((task) => {
-    if (task.status === 'done') return []
-    if (task.is_blocked) return [{ task, label: 'Đang bị chặn', kind: 'blocked' as const, daysLeft: 0 }]
-    if (task.deadline) {
-      const daysLeft = daysBetween(today, task.deadline)
-      if (daysLeft < 0) return [{ task, label: `Quá hạn ${Math.abs(daysLeft)} ngày`, kind: 'overdue' as const, daysLeft }]
-      if (daysLeft === 0) return [{ task, label: 'Đến hạn hôm nay', kind: 'soon' as const, daysLeft }]
-      if (daysLeft <= 3) return [{ task, label: `Còn ${daysLeft} ngày`, kind: 'soon' as const, daysLeft }]
-    }
-    const missing = [!task.deadline && 'Thiếu deadline', taskPics(task).length === 0 && 'Chưa phân công'].filter(Boolean)
-    if (missing.length) return [{ task, label: missing.join(' · '), kind: 'incomplete' as const, daysLeft: 0 }]
-    return []
-  }).sort((a, b) => {
-    const rank = { overdue: 0, blocked: 1, soon: 2, incomplete: 3 }
-    return rank[a.kind] - rank[b.kind] || a.daysLeft - b.daysLeft
   })
 }
 
@@ -140,9 +118,11 @@ function DeadlineTimeline({ tasks, today }: { tasks: DashboardTask[]; today: str
     {nextTasks.length === 0 ? <p className="dashboard-empty">Chưa có deadline cần theo dõi.</p> : <ol className="deadline-list">
       {nextTasks.map((task) => {
         const days = daysBetween(today, task.deadline!)
+        const deadlineLabel = days < 0 ? `Quá hạn ${Math.abs(days)} ngày` : days === 0 ? 'Đến hạn hôm nay' : days <= 3 ? `Còn ${days} ngày` : null
         return <li key={task.id} className={days < 0 ? 'late' : ''}>
           <span className="deadline-date"><CalendarDays size={14} />{formatDate(task.deadline!)}</span>
           <div className="deadline-task"><strong title={task.title}>{task.title}</strong><small>{taskPics(task).join(', ') || 'Chưa phân công'}</small></div>
+          {deadlineLabel && <span className={`deadline-countdown${days < 0 ? ' late' : ''}`}>{deadlineLabel}</span>}
           <span className={`task-status-pill ${task.status}`}>{taskStatusLabels[task.status]}</span>
         </li>
       })}
@@ -245,22 +225,6 @@ function BugSummary({ bugs }: { bugs: DashboardBug[] }) {
   </section>
 }
 
-function FollowUpPanel({ reminders, loading, error }: { reminders: Reminder[]; loading: boolean; error: string }) {
-  return <section className="dashboard-card followup-card" aria-labelledby="followup-title">
-    <div className="dashboard-card-heading"><h2 id="followup-title">Cần xử lý</h2><span className="followup-count">{loading || error ? '—' : reminders.length}</span></div>
-    {loading ? <p className="dashboard-empty">Đang tải task…</p> : error ? <p className="dashboard-empty followup-error">{error}</p> : reminders.length === 0 ? (
-      <div className="dashboard-empty with-icon"><CircleCheck size={16} /> Chưa có task cần nhắc.</div>
-    ) : <ul className="followup-list">
-      {reminders.slice(0, 5).map(({ task, label, kind }) => <li key={task.id}>
-        <span className={`followup-marker ${kind}`}>{kind === 'incomplete' ? <CircleHelp size={13} /> : <AlertTriangle size={13} />}</span>
-        <div className="followup-task"><strong title={task.title}>{task.title}</strong><small>{taskPics(task).join(', ') || 'Chưa phân công'}</small></div>
-        <span className={`followup-label ${kind}`}>{label}</span>
-      </li>)}
-    </ul>}
-    {!loading && !error && reminders.length > 0 && <Link className="followup-link" href="/task-timeline">Mở task <ArrowUpRight size={13} /></Link>}
-  </section>
-}
-
 export function Dashboard() {
   const [tasks, setTasks] = useState<DashboardTask[]>([])
   const [bugs, setBugs] = useState<DashboardBug[]>([])
@@ -277,7 +241,7 @@ export function Dashboard() {
         return
       }
       const [taskResult, bugResult] = await Promise.all([
-        supabase.from('tasks').select('id,title,assignee_name,assignee_names,start_date,deadline,status,is_blocked,blocker_reason').order('created_at', { ascending: false }),
+        supabase.from('tasks').select('id,title,assignee_name,assignee_names,start_date,deadline,status').order('created_at', { ascending: false }),
         supabase.from('bugs').select('id,status'),
       ])
       if (!active) return
@@ -292,10 +256,9 @@ export function Dashboard() {
     return () => { active = false }
   }, [])
 
-  const reminders = useMemo(() => createReminders(tasks, today), [tasks, today])
   const doneCount = tasks.filter((task) => task.status === 'done').length
   const completion = tasks.length ? Math.round(doneCount / tasks.length * 100) : 0
-  const overdueCount = reminders.filter((reminder) => reminder.kind === 'overdue').length
+  const overdueCount = tasks.filter((task) => task.status !== 'done' && task.deadline && daysBetween(today, task.deadline) < 0).length
   const todoCount = tasks.filter((task) => task.status === 'todo').length
 
   return <>
@@ -318,7 +281,6 @@ export function Dashboard() {
     <section className="dashboard-detail-grid" aria-label="Chi tiết dự án">
       <StatusDistribution tasks={tasks} />
       <BugSummary bugs={bugs} />
-      <FollowUpPanel reminders={reminders} loading={loading} error={error} />
     </section>
 
     <RoadmapTimeline tasks={tasks} today={today} />

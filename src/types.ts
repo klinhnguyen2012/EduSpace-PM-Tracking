@@ -24,6 +24,8 @@ type Task = {
   acceptance_criteria: string[]
   assignee_name: string | null
   assignee_names: string[]
+  assignee_emails: string[] | null
+  qa_assignee_email: string | null
   priority: TaskPriority | null
   status: TaskStatus
   start_date: string | null
@@ -77,6 +79,8 @@ export type Database = {
         acceptance_criteria?: string[]
         assignee_name?: string | null
         assignee_names?: string[]
+        assignee_emails?: string[] | null
+        qa_assignee_email?: string | null
         priority?: TaskPriority | null
         status?: TaskStatus
         start_date?: string | null
