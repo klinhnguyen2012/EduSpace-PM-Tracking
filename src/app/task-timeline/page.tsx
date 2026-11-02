@@ -587,13 +587,13 @@ export default function TaskTimeline() {
                   {visibleTasks.map((task) => (
                     <Fragment key={task.id}>
                     <tr>
-                      <td className="task-sequence">{taskSequence.get(task.id)}</td>
-                      <td><div className="task-pic-tags">{task.assignee_names.length ? task.assignee_names.map((name) => {
+                      <td className="task-sequence" data-label="STT">{taskSequence.get(task.id)}</td>
+                      <td data-label="PIC"><div className="task-pic-tags">{task.assignee_names.length ? task.assignee_names.map((name) => {
                         const color = memberColor(name)
                         return <span className="assignee-tag" key={name} style={{ backgroundColor: color.background, color: color.color, borderColor: color.border }}>{name}</span>
                       }) : '—'}</div></td>
-                      <td className="task-deadline-cell">{task.deadline ? <span>{deadlineDisplay(task.deadline)}</span> : '—'}</td>
-                      <td className="task-title-cell">
+                      <td className="task-deadline-cell" data-label="Deadline">{task.deadline ? <span>{deadlineDisplay(task.deadline)}</span> : '—'}</td>
+                      <td className="task-title-cell" data-label="Công việc">
                         <div className="task-title-wrap">
                           <div className="task-title-header">
                             <strong><TextPreview label={task.title} text={task.title} onExpand={() => setExpandedText({ label: task.title, text: task.title })} showExpandButton={false} /></strong>
@@ -602,11 +602,11 @@ export default function TaskTimeline() {
                           {task.description && <small><TextPreview label="mô tả" text={task.description} onExpand={() => setExpandedText({ label: `Mô tả · ${task.title}`, text: task.description! })} maxLength={65} showExpandButton={false} /></small>}
                         </div>
                       </td>
-                      <td>{task.priority ? <span className={`priority-tag ${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span> : '—'}</td>
-                      <td><select className={`task-status-select status-${task.status}`} aria-label={`Trạng thái ${task.title}`} value={task.status} onChange={(event) => void changeStatus(task, event.target.value as TaskStatus)}>
+                      <td data-label="Ưu tiên">{task.priority ? <span className={`priority-tag ${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span> : '—'}</td>
+                      <td data-label="Trạng thái"><select className={`task-status-select status-${task.status}`} aria-label={`Trạng thái ${task.title}`} value={task.status} onChange={(event) => void changeStatus(task, event.target.value as TaskStatus)}>
                         {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select></td>
-                      <td className="task-updates-cell">
+                      <td className="task-updates-cell" data-label="Cập nhật">
                         {task.links.length === 0 && !task.notes && !task.feedback && !task.is_blocked && !task.blocker_reason && !task.qa_assignee_email ? '—' : <div className="task-updates">
                           {task.qa_assignee_email && <div className="task-update-line"><b>QA PIC</b><span>{memberName(task.qa_assignee_email)}</span></div>}
                           {task.links.map((taskLink, linkIndex) => {
@@ -617,11 +617,11 @@ export default function TaskTimeline() {
                           {task.feedback && <div className="task-update-line"><b>Feedback</b><TextPreview label="feedback" text={task.feedback} onExpand={() => setExpandedText({ label: `Feedback · ${task.title}`, text: task.feedback! })} /></div>}
                         </div>}
                       </td>
-                      <td><div className="task-images" aria-label={`${task.attachments.length} ảnh đính kèm`}>
+                      <td data-label="Ảnh"><div className="task-images" aria-label={`${task.attachments.length} ảnh đính kèm`}>
                         {task.attachments.map((path) => imageUrls[path] && <button className="task-image-thumb" type="button" onClick={() => setExpandedImage(imageUrls[path])} key={path} aria-label="Xem ảnh đính kèm"><img src={imageUrls[path]} alt="Ảnh task" /></button>)}
                         {task.attachments.length === 0 && '—'}
                       </div></td>
-                      <td><div className="task-actions">
+                      <td data-label="Thao tác"><div className="task-actions">
                         <button
                           className="task-details-button"
                           type="button"
