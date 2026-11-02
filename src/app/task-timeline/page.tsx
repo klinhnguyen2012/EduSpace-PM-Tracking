@@ -8,7 +8,7 @@ import { renderWithLinks } from '../../lib/linkify'
 
 type TaskStatus = 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
 type TaskPriority = 'P0' | 'P1' | 'P2'
-type TaskView = 'active' | 'completed'
+type TaskView = 'active' | 'qa' | 'completed'
 
 type Task = {
   id: string
@@ -286,7 +286,11 @@ export default function TaskTimeline() {
       .eq('id', task.id)
 
     if (updateError) setError(`Không cập nhật được trạng thái: ${updateError.message}`)
-    else setTasks((current) => status === 'done' ? current.filter((item) => item.id !== task.id) : current.map((item) => item.id === task.id ? { ...item, status } : item))
+    else {
+      setTasks((current) => status === 'done' ? current.filter((item) => item.id !== task.id) : current.map((item) => item.id === task.id ? { ...item, status } : item))
+      if (status === 'qa') setTaskView('qa')
+      else if (task.status === 'qa') setTaskView('active')
+    }
   }
 
   async function deleteTask(task: Task) {
@@ -364,9 +368,10 @@ export default function TaskTimeline() {
   }
 
   const orderedTasks = [...tasks].sort((a, b) => a.created_at.localeCompare(b.created_at))
-  const activeTasks = orderedTasks.filter((task) => task.status !== 'done')
+  const activeTasks = orderedTasks.filter((task) => task.status !== 'done' && task.status !== 'qa')
+  const qaTasks = orderedTasks.filter((task) => task.status === 'qa')
   const completedTasks = orderedTasks.filter((task) => task.status === 'done')
-  const visibleTasks = taskView === 'active' ? activeTasks : completedTasks
+  const visibleTasks = taskView === 'active' ? activeTasks : taskView === 'qa' ? qaTasks : completedTasks
   const taskSequence = new Map(visibleTasks.map((task, index) => [task.id, index + 1]))
 
   return (
@@ -457,6 +462,9 @@ export default function TaskTimeline() {
             <button type="button" aria-pressed={taskView === 'active'} onClick={() => setTaskView('active')}>
               Danh sách task <span>{activeTasks.length}</span>
             </button>
+            <button type="button" aria-pressed={taskView === 'qa'} onClick={() => setTaskView('qa')}>
+              Đang QA <span>{qaTasks.length}</span>
+            </button>
             <button type="button" aria-pressed={taskView === 'completed'} onClick={() => setTaskView('completed')}>
               Đã hoàn thành <span>{completedTasks.length}</span>
             </button>
@@ -466,6 +474,8 @@ export default function TaskTimeline() {
           <div className="task-empty">
             {taskView === 'completed'
               ? 'Chưa có task hoàn thành.'
+              : taskView === 'qa'
+                ? 'Chưa có task đang QA.'
               : tasks.length === 0
                 ? 'Chưa có task. Bấm “Tạo task” để tạo công việc đầu tiên.'
                 : 'Không còn task chưa hoàn thành.'}
