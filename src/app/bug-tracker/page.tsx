@@ -18,6 +18,10 @@ type Bug = {
   test_attachments: string[]
   pic_names: string[]
   created_at: string
+  archived_at?: string | null
+  archive_reason?: 'deleted' | 'completed' | null
+  archive_previous_status?: string | null
+  evidence_link?: string | null
 }
 type BugDraft = Pick<Bug, 'title' | 'description' | 'status' | 'notes' | 'test_result' | 'attachments' | 'test_attachments' | 'pic_names'>
 type ImageKind = 'illustration' | 'test'
@@ -57,6 +61,7 @@ export default function BugTracker() {
     const { data, error: loadError } = await client
       .from('bugs')
       .select('id,title,description,status,notes,test_result,attachments,test_attachments,pic_names,created_at')
+      .is('archived_at', null)
       .order('created_at', { ascending: false })
 
     if (loadError) {
@@ -219,18 +224,26 @@ export default function BugTracker() {
 
   async function changeStatus(bug: Bug, status: BugStatus) {
     if (!supabase || status === bug.status) return
-    const { error: updateError } = await supabase.from('bugs').update({ status }).eq('id', bug.id)
+    const archivedAt = status === 'closed' ? new Date().toISOString() : null
+    const { error: updateError } = await supabase.from('bugs').update({
+      status,
+      archived_at: archivedAt,
+      archive_reason: archivedAt ? 'completed' : null,
+      archive_previous_status: archivedAt ? bug.status : null,
+    }).eq('id', bug.id)
     if (updateError) setError(`Không cập nhật được trạng thái: ${updateError.message}`)
-    else setBugs((current) => current.map((item) => item.id === bug.id ? { ...item, status } : item))
+    else setBugs((current) => status === 'closed'
+      ? current.filter((item) => item.id !== bug.id)
+      : current.map((item) => item.id === bug.id ? { ...item, status } : item))
   }
 
   async function deleteBug(bug: Bug) {
     if (!supabase) return
     if (!window.confirm(`Bạn có chắc chắn muốn xóa bug "${bug.title}"?`)) return
     setError('')
-    const { error: deleteError } = await supabase.from('bugs').delete().eq('id', bug.id)
-    if (deleteError) {
-      setError(`Không xóa được bug: ${deleteError.message}`)
+    const { error: archiveError } = await supabase.from('bugs').update({ archived_at: new Date().toISOString(), archive_reason: 'deleted', archive_previous_status: null }).eq('id', bug.id)
+    if (archiveError) {
+      setError(`Không lưu trữ được bug: ${archiveError.message}`)
       return
     }
 
@@ -239,15 +252,6 @@ export default function BugTracker() {
       setIsModalOpen(false)
     }
 
-    const allImages = [...bug.attachments, ...bug.test_attachments]
-    if (allImages.length) {
-      await supabase.storage.from('task-images').remove(allImages)
-      setImageUrls((current) => {
-        const next = { ...current }
-        allImages.forEach((path) => delete next[path])
-        return next
-      })
-    }
   }
 
   function renderImages(paths: string[], label: string, showEmpty = true) {

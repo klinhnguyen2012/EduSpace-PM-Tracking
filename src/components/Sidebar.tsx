@@ -1,4 +1,4 @@
-import { Bug, CheckSquare2, ChevronLeft, ChevronRight, LayoutDashboard } from 'lucide-react'
+import { Archive, Bug, CheckSquare2, ChevronLeft, ChevronRight, LayoutDashboard } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { DashboardPage } from '../types'
@@ -7,6 +7,7 @@ const navigation: { id: DashboardPage; label: string; href: string; icon: typeof
   { id: 'dashboard', label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { id: 'timeline', label: 'Task Timeline', href: '/task-timeline', icon: CheckSquare2 },
   { id: 'bugs', label: 'Bug Tracker', href: '/bug-tracker', icon: Bug },
+  { id: 'archive', label: 'Lưu trữ', href: '/archive', icon: Archive },
 ]
 
 type SidebarProps = {

@@ -14,6 +14,7 @@ import { pageTitles, type DashboardPage } from '../types'
 function pageFromPath(pathname: string): DashboardPage {
   if (pathname.startsWith('/task-timeline')) return 'timeline'
   if (pathname.startsWith('/bug-tracker')) return 'bugs'
+  if (pathname.startsWith('/archive')) return 'archive'
   return 'dashboard'
 }
 

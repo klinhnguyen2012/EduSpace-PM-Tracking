@@ -1,0 +1,2 @@
+[functions.purge-expired-archive]
+verify_jwt = true

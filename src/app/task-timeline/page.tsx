@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useState, type ChangeEvent, type Form
 import { ImagePlus, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { memberColor, memberEmail, memberEmails, memberName, teamMemberNames } from '../../lib/task-colors'
-import { renderWithLinks } from '../../lib/linkify'
+import { parseNamedLink, renderWithLinks } from '../../lib/linkify'
 
 type TaskStatus = 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
 type TaskPriority = 'P0' | 'P1' | 'P2'
@@ -29,6 +29,9 @@ type Task = {
   blocker_reason: string | null
   attachments: string[]
   created_at: string
+  archived_at?: string | null
+  archive_reason?: 'deleted' | 'completed' | null
+  archive_previous_status?: string | null
 }
 
 type TaskDetailsDraft = {
@@ -153,6 +156,7 @@ export default function TaskTimeline() {
     const taskResult = await client
       .from('tasks')
       .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,assignee_emails,qa_assignee_email,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
+      .is('archived_at', null)
       .order('created_at', { ascending: true })
 
     if (taskResult.error) setError(`Không tải được task: ${taskResult.error.message}`)
@@ -259,13 +263,6 @@ export default function TaskTimeline() {
       if (insertError) throw insertError
 
       setTasks((current) => [data as Task, ...current])
-      const assignedEmails = memberEmails(assigneeNames)
-      if (assignedEmails.length) {
-        const { error: notificationError } = await client.functions.invoke('notify-task-email', {
-          body: { event: 'assigned', taskId, recipients: assignedEmails, eventId: crypto.randomUUID() },
-        })
-        if (notificationError) setError(`Task đã tạo nhưng chưa gửi được email PIC: ${notificationError.message}`)
-      }
       if (uploadedPaths.length) {
         const signedUrls = await Promise.all(uploadedPaths.map(async (path) => {
           const { data: signed } = await client.storage.from('task-images').createSignedUrl(path, 3600)
@@ -292,24 +289,27 @@ export default function TaskTimeline() {
   async function changeStatus(task: Task, status: TaskStatus) {
     if (!supabase) return
     setError('')
+    const archivedAt = status === 'done' ? new Date().toISOString() : null
     const { error: updateError } = await supabase
       .from('tasks')
-      .update({ status, completed_at: status === 'done' ? new Date().toISOString() : null })
+      .update({
+        status,
+        completed_at: archivedAt,
+        archived_at: archivedAt,
+        archive_reason: archivedAt ? 'completed' : null,
+        archive_previous_status: archivedAt ? task.status : null,
+      })
       .eq('id', task.id)
 
     if (updateError) setError(`Không cập nhật được trạng thái: ${updateError.message}`)
     else {
-      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item))
+      setTasks((current) => status === 'done'
+        ? current.filter((item) => item.id !== task.id)
+        : current.map((item) => item.id === task.id ? { ...item, status } : item))
       if (status === 'qa') {
         setTaskView('qa')
         if (task.status !== 'qa') {
           if (!task.qa_assignee_email) setError('Task chuyển sang QA nhưng chưa có người QA được giao.')
-          else {
-            const { error: notificationError } = await supabase.functions.invoke('notify-task-email', {
-              body: { event: 'qa', taskId: task.id, eventId: crypto.randomUUID() },
-            })
-            if (notificationError) setError(`Task đã chuyển sang QA nhưng chưa gửi được email: ${notificationError.message}`)
-          }
         }
       }
       else if (taskView === 'qa') setTaskView(status === 'done' ? 'completed' : 'active')
@@ -319,15 +319,10 @@ export default function TaskTimeline() {
   async function deleteTask(task: Task) {
     if (!supabase || !window.confirm(`Xóa task “${task.title}”?`)) return
     setError('')
-    const { error: deleteError } = await supabase.from('tasks').delete().eq('id', task.id)
-    if (deleteError) setError(`Không xóa được task: ${deleteError.message}`)
+    const { error: archiveError } = await supabase.from('tasks').update({ archived_at: new Date().toISOString(), archive_reason: 'deleted', archive_previous_status: null }).eq('id', task.id)
+    if (archiveError) setError(`Không lưu trữ được task: ${archiveError.message}`)
     else {
       setTasks((current) => current.filter((item) => item.id !== task.id))
-      if (task.attachments.length) {
-        const { error: storageError } = await supabase.storage.from('task-images').remove(task.attachments)
-        if (storageError) setError(`Task đã xóa nhưng ảnh chưa được dọn khỏi Storage: ${storageError.message}`)
-      }
-      setImageUrls((current) => Object.fromEntries(Object.entries(current).filter(([path]) => !task.attachments.includes(path))))
     }
   }
 
@@ -450,21 +445,6 @@ export default function TaskTimeline() {
         ...(qaAssignmentChanged ? { qa_assignee_email: draft.qaAssigneeEmail || null } : {}),
         attachments,
       } : item))
-      const qaRecipientChanged = draft.qaAssigneeEmail !== (task.qa_assignee_email ?? '')
-      if (qaRecipientChanged && draft.qaAssigneeEmail && task.status === 'qa') {
-        const { error: notificationError } = await client.functions.invoke('notify-task-email', {
-          body: { event: 'qa', taskId: task.id, eventId: crypto.randomUUID() },
-        })
-        if (notificationError) setError(`QA PIC đã cập nhật nhưng chưa gửi được email: ${notificationError.message}`)
-      }
-      const oldEmails = task.assignee_emails?.length ? task.assignee_emails : memberEmails(task.assignee_names)
-      const addedEmails = memberEmails(draft.picNames).filter((email) => !oldEmails.includes(email))
-      if (addedEmails.length) {
-        const { error: notificationError } = await client.functions.invoke('notify-task-email', {
-          body: { event: 'assigned', taskId: task.id, recipients: addedEmails, eventId: crypto.randomUUID() },
-        })
-        if (notificationError) setError(`Task đã cập nhật nhưng chưa gửi được email PIC mới: ${notificationError.message}`)
-      }
       setEditingDetails(null)
       setEditImageFiles([])
 
@@ -629,7 +609,10 @@ export default function TaskTimeline() {
                       <td className="task-updates-cell">
                         {task.links.length === 0 && !task.notes && !task.feedback && !task.is_blocked && !task.blocker_reason && !task.qa_assignee_email ? '—' : <div className="task-updates">
                           {task.qa_assignee_email && <div className="task-update-line"><b>QA PIC</b><span>{memberName(task.qa_assignee_email)}</span></div>}
-                          {task.links.map((taskLink, linkIndex) => <div className="task-update-line" key={`${task.id}-link-${linkIndex}`}><b>Link</b><a href={taskLink} target="_blank" rel="noreferrer">Mở link {linkIndex + 1}</a></div>)}
+                          {task.links.map((taskLink, linkIndex) => {
+                            const { label, url } = parseNamedLink(taskLink)
+                            return <div className="task-update-line" key={`${task.id}-link-${linkIndex}`}><b>Link</b><a href={url} target="_blank" rel="noreferrer" title={url}>{label}</a></div>
+                          })}
                           {(task.notes || task.blocker_reason || task.is_blocked) && <div className="task-update-line"><b>{task.is_blocked ? 'Blocker' : 'Ghi chú'}</b><span>{task.is_blocked && <strong className="blocker-label">Blocked</strong>}<TextPreview label="ghi chú / blocker" text={[task.blocker_reason, task.notes].filter(Boolean).join('\n') || 'Task đang bị chặn'} onExpand={() => setExpandedText({ label: `Ghi chú / Blocker · ${task.title}`, text: [task.blocker_reason, task.notes].filter(Boolean).join('\n') || 'Task đang bị chặn' })} /></span></div>}
                           {task.feedback && <div className="task-update-line"><b>Feedback</b><TextPreview label="feedback" text={task.feedback} onExpand={() => setExpandedText({ label: `Feedback · ${task.title}`, text: task.feedback! })} /></div>}
                         </div>}

@@ -3,6 +3,26 @@ import { ExternalLink } from 'lucide-react'
 
 const URL_REGEX = /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g
 
+export function parseNamedLink(value: string): { label: string; url: string } {
+  const separator = value.indexOf('|')
+  if (separator > 0) {
+    const label = value.slice(0, separator).trim()
+    const url = value.slice(separator + 1).trim()
+    if (label && /^https?:\/\//i.test(url)) return { label, url }
+  }
+
+  try {
+    const parsed = new URL(value)
+    const host = parsed.hostname.replace(/^www\./, '')
+    const label = host === 'docs.google.com'
+      ? parsed.pathname.includes('/spreadsheets/') ? 'Google Sheets' : 'Google Docs'
+      : host === 'drive.google.com' ? 'Google Drive' : host
+    return { label, url: value }
+  } catch {
+    return { label: value, url: value }
+  }
+}
+
 function formatDisplayUrl(url: string, maxLen = 34): string {
   try {
     const parsed = new URL(url)
