@@ -183,7 +183,7 @@ a { color: inherit; }
 .deadline-card .dashboard-card-heading { flex: 0 0 auto; margin-bottom: 8px; }
 .deadline-list { display: grid; margin: 0; padding: 0; list-style: none; }
 .deadline-card .deadline-list { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
-.deadline-list li { min-height: 48px; display: grid; grid-template-columns: 170px minmax(0, 1fr) 120px; align-items: center; gap: 12px; border-top: 1px solid #f0f3f4; }
+.deadline-list li { min-height: 48px; display: grid; grid-template-columns: 170px minmax(0, 1fr) auto 120px; align-items: center; gap: 12px; border-top: 1px solid #f0f3f4; }
 .deadline-list li:first-child { border-top: 0; }
 .deadline-date { display: inline-flex; align-items: center; gap: 7px; color: #59727e; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .deadline-date svg { flex: 0 0 auto; color: var(--teal); }
@@ -197,7 +197,9 @@ a { color: inherit; }
 .task-status-pill.qa { color: #67529a; background: #f0eafb; }
 .task-status-pill.done { color: #28704f; background: #e3f3e8; }
 .task-status-pill.paused { color: #64717a; background: #edf0f2; }
-.dashboard-detail-grid { min-height: 210px; flex: 1 0 210px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.deadline-countdown { justify-self: end; padding: 5px 7px; border-radius: 5px; color: #8d611e; background: #fff3d7; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.deadline-countdown.late { color: #a33b3b; background: #ffe8e4; }
+.dashboard-detail-grid { min-height: 210px; flex: 1 0 210px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
 .dashboard-detail-grid > .dashboard-card { height: 100%; padding: 14px 16px; }
 .dashboard-empty { display: flex; align-items: center; gap: 7px; min-height: 48px; margin: 0; color: #71858f; font-size: 12px; line-height: 1.5; }
 .dashboard-empty.with-icon svg { flex: 0 0 auto; color: var(--teal); }
