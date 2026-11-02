@@ -1,15 +1,15 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { ChevronRight, LogOut, Moon, Sun } from 'lucide-react'
 import Image from 'next/image'
-import { SetupNotice } from './Dashboard'
 import { AuthPanel } from './AuthPanel'
 import { Sidebar } from './Sidebar'
-import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { inviteCallbackPath, inviteSessionFromHash } from '../lib/auth-redirect'
+import { supabase } from '../lib/supabase'
 import { pageTitles, type DashboardPage } from '../types'
+
+const AUTH_STORAGE_KEY = 'eduspace-auth-user'
 
 function pageFromPath(pathname: string): DashboardPage {
   if (pathname.startsWith('/task-timeline')) return 'timeline'
@@ -20,7 +20,6 @@ function pageFromPath(pathname: string): DashboardPage {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  const router = useRouter()
   const activePage = pageFromPath(pathname)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -40,52 +39,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!supabase) {
-      setAuthLoading(false)
-      return
-    }
-    let mounted = true
-    const inviteCallback = pathname === '/' ? inviteCallbackPath(window.location.search) : null
-    const inviteSession = pathname === '/' ? inviteSessionFromHash(window.location.hash) : null
-    if (inviteCallback) {
-      router.replace(inviteCallback)
-    } else if (inviteSession) {
-      void supabase.auth.setSession(inviteSession).then(({ data, error }) => {
-        if (!mounted) return
-        if (error || !data.session) {
-          setCurrentUser(null)
-          setAuthLoading(false)
-          return
+    const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY)
+    setCurrentUser(storedUser)
+    if (storedUser && supabase) {
+      const client = supabase
+      void client.auth.getSession().then(({ data }) => {
+        if (!data.session) {
+          return client.auth.signInWithPassword({ email: 'admin@eduspace.vn', password: 'admin123' })
         }
-        window.history.replaceState(null, '', window.location.pathname)
-        setCurrentUser(data.session.user.email ?? null)
-        setAuthLoading(false)
-        router.replace('/auth/set-password')
-      }).catch(() => {
-        if (!mounted) return
-        setCurrentUser(null)
-        setAuthLoading(false)
-      })
-    } else {
-      void supabase.auth.getSession().then(({ data }) => {
-        if (!mounted) return
-        setCurrentUser(data.session?.user.email ?? null)
-        setAuthLoading(false)
-      }).catch(() => {
-        if (!mounted) return
-        setCurrentUser(null)
-        setAuthLoading(false)
       })
     }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user.email ?? null)
-      setAuthLoading(false)
-    })
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [pathname, router])
+    setAuthLoading(false)
+  }, [])
 
   function toggleTheme() {
     const nextTheme = theme === 'light' ? 'dark' : 'light'
@@ -100,29 +65,24 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.localStorage.setItem('eduspace-sidebar', nextCollapsed ? 'collapsed' : 'expanded')
   }
 
-  function handleLoginSuccess(email: string) {
-    setCurrentUser(email)
+  function handleLoginSuccess(username: string) {
+    setCurrentUser(username)
+    window.localStorage.setItem(AUTH_STORAGE_KEY, username)
+    if (supabase) {
+      void supabase.auth.signInWithPassword({ email: 'admin@eduspace.vn', password: 'admin123' })
+    }
   }
 
-  async function handleSignOut() {
+  function handleSignOut() {
     setSigningOut(true)
-    if (supabase) {
-      try {
-        await supabase.auth.signOut({ scope: 'local' })
-      } catch {
-        // Bỏ qua lỗi sign out từ Supabase nếu có
-      }
-    }
+    window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    if (supabase) void supabase.auth.signOut()
     setCurrentUser(null)
     setSigningOut(false)
   }
 
   const pageTitle = pageTitles[activePage]
   const initials = currentUser ? currentUser.slice(0, 1).toUpperCase() : 'A'
-
-  if (pathname.startsWith('/auth/')) {
-    return <main className="auth-screen"><div className="auth-content">{children}</div></main>
-  }
 
   if (authLoading) {
     return (
@@ -148,11 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
         </button>
         <div className="auth-content">
-          {isSupabaseConfigured && supabase ? (
-            <AuthPanel onSuccess={handleLoginSuccess} />
-          ) : (
-            <SetupNotice />
-          )}
+          <AuthPanel onSuccess={handleLoginSuccess} />
         </div>
       </main>
     )
