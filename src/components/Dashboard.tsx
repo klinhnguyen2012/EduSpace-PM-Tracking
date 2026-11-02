@@ -277,8 +277,8 @@ export function Dashboard() {
         return
       }
       const [taskResult, bugResult] = await Promise.all([
-        supabase.from('tasks').select('id,title,assignee_name,assignee_names,start_date,deadline,status,is_blocked,blocker_reason').order('created_at', { ascending: false }),
-        supabase.from('bugs').select('id,status'),
+        supabase.from('tasks').select('id,title,assignee_name,assignee_names,start_date,deadline,status,is_blocked,blocker_reason').is('archived_at', null).order('created_at', { ascending: false }),
+        supabase.from('bugs').select('id,status').is('archived_at', null),
       ])
       if (!active) return
       if (taskResult.error || bugResult.error) setError(`Không tải được dashboard: ${taskResult.error?.message ?? bugResult.error?.message}`)

@@ -39,6 +39,9 @@ type Task = {
   created_at: string
   updated_at: string
   completed_at: string | null
+  archived_at: string | null
+  archive_reason: 'deleted' | 'completed' | null
+  archive_previous_status: string | null
 }
 
 type Bug = {
@@ -63,6 +66,9 @@ type Bug = {
   created_by: string | null
   created_at: string
   updated_at: string
+  archived_at: string | null
+  archive_reason: 'deleted' | 'completed' | null
+  archive_previous_status: string | null
 }
 
 export type Database = {
@@ -92,6 +98,9 @@ export type Database = {
         created_at?: string
         updated_at?: string
         completed_at?: string | null
+        archived_at?: string | null
+        archive_reason?: Task['archive_reason']
+        archive_previous_status?: string | null
       }>
       bugs: Table<Bug, {
         id?: string
@@ -115,6 +124,9 @@ export type Database = {
         created_by?: string | null
         created_at?: string
         updated_at?: string
+        archived_at?: string | null
+        archive_reason?: Bug['archive_reason']
+        archive_previous_status?: string | null
       }>
     }
     Views: {}
@@ -124,10 +136,11 @@ export type Database = {
   }
 }
 
-export type DashboardPage = 'dashboard' | 'timeline' | 'bugs'
+export type DashboardPage = 'dashboard' | 'timeline' | 'bugs' | 'archive'
 
 export const pageTitles: Record<DashboardPage, string> = {
   dashboard: 'Dashboard',
   timeline: 'Task Timeline',
   bugs: 'Bug Tracker',
+  archive: 'Lưu trữ',
 }

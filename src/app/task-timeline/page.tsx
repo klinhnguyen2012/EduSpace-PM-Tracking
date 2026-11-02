@@ -27,6 +27,9 @@ type Task = {
   blocker_reason: string | null
   attachments: string[]
   created_at: string
+  archived_at?: string | null
+  archive_reason?: 'deleted' | 'completed' | null
+  archive_previous_status?: string | null
 }
 
 type TaskDetailsDraft = {
@@ -147,6 +150,7 @@ export default function TaskTimeline() {
     const taskResult = await client
       .from('tasks')
       .select('id,title,description,status,priority,start_date,deadline,assignee_name,assignee_names,links,notes,feedback,is_blocked,blocker_reason,attachments,created_at')
+      .is('archived_at', null)
       .order('created_at', { ascending: true })
 
     if (taskResult.error) setError(`Không tải được task: ${taskResult.error.message}`)
@@ -275,27 +279,23 @@ export default function TaskTimeline() {
   async function changeStatus(task: Task, status: TaskStatus) {
     if (!supabase) return
     setError('')
+    const archivedAt = status === 'done' ? new Date().toISOString() : null
     const { error: updateError } = await supabase
       .from('tasks')
-      .update({ status, completed_at: status === 'done' ? new Date().toISOString() : null })
+      .update({ status, completed_at: archivedAt, archived_at: archivedAt, archive_reason: archivedAt ? 'completed' : null, archive_previous_status: archivedAt ? task.status : null })
       .eq('id', task.id)
 
     if (updateError) setError(`Không cập nhật được trạng thái: ${updateError.message}`)
-    else setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item))
+    else setTasks((current) => status === 'done' ? current.filter((item) => item.id !== task.id) : current.map((item) => item.id === task.id ? { ...item, status } : item))
   }
 
   async function deleteTask(task: Task) {
     if (!supabase || !window.confirm(`Xóa task “${task.title}”?`)) return
     setError('')
-    const { error: deleteError } = await supabase.from('tasks').delete().eq('id', task.id)
-    if (deleteError) setError(`Không xóa được task: ${deleteError.message}`)
+    const { error: archiveError } = await supabase.from('tasks').update({ archived_at: new Date().toISOString(), archive_reason: 'deleted', archive_previous_status: null }).eq('id', task.id)
+    if (archiveError) setError(`Không lưu trữ được task: ${archiveError.message}`)
     else {
       setTasks((current) => current.filter((item) => item.id !== task.id))
-      if (task.attachments.length) {
-        const { error: storageError } = await supabase.storage.from('task-images').remove(task.attachments)
-        if (storageError) setError(`Task đã xóa nhưng ảnh chưa được dọn khỏi Storage: ${storageError.message}`)
-      }
-      setImageUrls((current) => Object.fromEntries(Object.entries(current).filter(([path]) => !task.attachments.includes(path))))
     }
   }
 
