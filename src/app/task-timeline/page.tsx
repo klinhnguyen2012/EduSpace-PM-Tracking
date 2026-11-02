@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useState, type ChangeEvent, type Form
 import { ImagePlus, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { memberColor, teamMemberNames } from '../../lib/task-colors'
-import { renderWithLinks } from '../../lib/linkify'
+import { parseNamedLink, renderWithLinks } from '../../lib/linkify'
 
 type TaskStatus = 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
 type TaskPriority = 'P0' | 'P1' | 'P2'
@@ -509,7 +509,10 @@ export default function TaskTimeline() {
                       </select></td>
                       <td className="task-updates-cell">
                         {task.links.length === 0 && !task.notes && !task.feedback && !task.is_blocked && !task.blocker_reason ? '—' : <div className="task-updates">
-                          {task.links.map((taskLink, linkIndex) => <div className="task-update-line" key={`${task.id}-link-${linkIndex}`}><b>Link</b><a href={taskLink} target="_blank" rel="noreferrer">Mở link {linkIndex + 1}</a></div>)}
+                          {task.links.map((taskLink, linkIndex) => {
+                            const { label, url } = parseNamedLink(taskLink)
+                            return <div className="task-update-line" key={`${task.id}-link-${linkIndex}`}><b>Link</b><a href={url} target="_blank" rel="noreferrer" title={url}>{label}</a></div>
+                          })}
                           {(task.notes || task.blocker_reason || task.is_blocked) && <div className="task-update-line"><b>{task.is_blocked ? 'Blocker' : 'Ghi chú'}</b><span>{task.is_blocked && <strong className="blocker-label">Blocked</strong>}<TextPreview label="ghi chú / blocker" text={[task.blocker_reason, task.notes].filter(Boolean).join('\n') || 'Task đang bị chặn'} onExpand={() => setExpandedText({ label: `Ghi chú / Blocker · ${task.title}`, text: [task.blocker_reason, task.notes].filter(Boolean).join('\n') || 'Task đang bị chặn' })} /></span></div>}
                           {task.feedback && <div className="task-update-line"><b>Feedback</b><TextPreview label="feedback" text={task.feedback} onExpand={() => setExpandedText({ label: `Feedback · ${task.title}`, text: task.feedback! })} /></div>}
                         </div>}
@@ -545,7 +548,7 @@ export default function TaskTimeline() {
                           <span>{name}</span>
                         </label>)}</div></div>
                         <label className="task-field"><span>Mô tả công việc</span><textarea rows={3} value={editingDetails.description} onChange={(event) => setEditingDetails({ ...editingDetails, description: event.target.value })} placeholder="Cập nhật mô tả chi tiết (hỗ trợ xuống dòng)" /></label>
-                        <label className="task-field"><span>Link làm (mỗi link một dòng)</span><textarea rows={3} value={editingDetails.links} onChange={(event) => setEditingDetails({ ...editingDetails, links: event.target.value })} placeholder="https://..." /></label>
+                        <label className="task-field"><span>Link làm (mỗi link một dòng)</span><textarea rows={3} value={editingDetails.links} onChange={(event) => setEditingDetails({ ...editingDetails, links: event.target.value })} placeholder={'Tên tài liệu | https://...\nHoặc chỉ dán URL'} /><small>Muốn hiện đúng tên tài liệu, nhập theo dạng: Tên tài liệu | URL</small></label>
                         <label className="task-field"><span>Ghi chú / Khó khăn</span><textarea rows={3} value={editingDetails.notes} onChange={(event) => setEditingDetails({ ...editingDetails, notes: event.target.value })} placeholder="Ghi chú tiến độ" /></label>
                         <label className="task-field"><span>Feedback</span><textarea rows={3} value={editingDetails.feedback} onChange={(event) => setEditingDetails({ ...editingDetails, feedback: event.target.value })} placeholder="Feedback cho task" /></label>
                         <div className="task-blocker-edit">

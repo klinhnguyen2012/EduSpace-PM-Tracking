@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Archive, CalendarClock, RotateCcw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { parseNamedLink } from '../../lib/linkify'
 
 type ArchiveTask = {
   id: string; title: string; description: string | null; status: 'todo' | 'in_progress' | 'qa' | 'done' | 'paused'
@@ -134,14 +135,17 @@ export default function ArchivePage() {
         <div className="archive-row-actions"><span>Còn {remainingDays(record.archivedAt)} ngày</span><button type="button" className="secondary-button" onClick={() => void restoreBug(record.item)}><RotateCcw size={14} /> Khôi phục</button></div>
       </article>)}</div> : links.length === 0 ? (
         <div className="archive-empty"><Archive size={22} /><strong>Chưa có link lưu trữ</strong></div>
-      ) : <div className="archive-list">{links.map((link) => <article className="archive-row archive-link-row" key={link.id}>
-        <div className="archive-row-main">
-          <div className="archive-row-title"><span className="archive-kind">{link.kind}</span><strong>{link.title}</strong><span className={`archive-reason ${link.reason}`}>{archiveReason(link.reason)}</span></div>
-          <p>{link.owner}</p>
-          <a className="archive-link-url" href={link.url} target="_blank" rel="noreferrer">{link.url}</a>
-        </div>
-        <div className="archive-row-actions"><span>Còn {remainingDays(link.archivedAt)} ngày</span></div>
-      </article>)}</div>}
+      ) : <div className="archive-list">{links.map((link) => {
+        const { label, url } = parseNamedLink(link.url)
+        return <article className="archive-row archive-link-row" key={link.id}>
+          <div className="archive-row-main">
+            <div className="archive-row-title"><span className="archive-kind">{link.kind}</span><strong>{link.title}</strong><span className={`archive-reason ${link.reason}`}>{archiveReason(link.reason)}</span></div>
+            <p>{link.owner}</p>
+            <a className="archive-link-url" href={url} target="_blank" rel="noreferrer" title={url}>{label}</a>
+          </div>
+          <div className="archive-row-actions"><span>Còn {remainingDays(link.archivedAt)} ngày</span></div>
+        </article>
+      })}</div>}
     </section>
   </>
 }
