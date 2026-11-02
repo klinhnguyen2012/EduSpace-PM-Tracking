@@ -89,12 +89,14 @@ a { color: inherit; }
 .archive-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 3px; border-top: 1px solid var(--line); }
 .archive-row-main { min-width: 0; }
 .archive-row-title { display: flex; align-items: center; gap: 9px; color: var(--text-strong, #24303f); }
+.archive-kind { flex: 0 0 auto; padding: 3px 7px; border-radius: 5px; color: #405c92; background: #edf3ff; font-size: 10px; font-weight: 700; }
 .archive-row-main p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .archive-row-main small { display: inline-block; margin-top: 7px; color: var(--muted); }
 .archive-reason { padding: 3px 8px; border-radius: 999px; color: #627084; background: #edf1f4; font-size: 11px; font-weight: 650; }
 .archive-reason.completed { color: #287c55; background: #e6f5ec; }
 .archive-links { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 7px; }
 .archive-links a { overflow: hidden; max-width: min(520px, 60vw); color: #2443a0; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.archive-link-url { display: block; overflow: hidden; max-width: min(720px, 68vw); margin-top: 5px; color: #2443a0; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .archive-row-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
 .archive-row-actions .secondary-button { min-height: 34px; padding: 0 10px; }
 .archive-empty { display: flex; min-height: 210px; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: var(--muted); }
@@ -103,6 +105,7 @@ a { color: inherit; }
 :root[data-theme="dark"] .archive-tabs button { border-color: var(--border); color: #cbd7e8; }
 :root[data-theme="dark"] .archive-tabs button[aria-selected="true"] { color: #cbd9ff; background: #26344d; }
 :root[data-theme="dark"] .archive-links a { color: #a9c4ff; }
+:root[data-theme="dark"] .archive-link-url { color: #a9c4ff; }
 @media (max-width: 700px) {
   .archive-card { padding: 13px; }
   .archive-row { align-items: flex-start; flex-direction: column; gap: 11px; }
